@@ -21,7 +21,7 @@ import { detectarTemaSistema } from './detectarTemaSistema.js';
 import { ajustarVisibilidadBotonesQuitarTodaSeñal } from './ajustarVisibilidadBotonesQuitarTodaSeñal.js';
 
 // MARK: Config
-const URL_JSON_CANALES_PRINCIPAL = 'https://dagshub.com/seonavez/CNT/raw/770191219ea8db11fa6f651ab775115fa944a878/canales.json';
+const URL_JSON_CANALES_PRINCIPAL = 'https://raw.githubusercontent.com/ClementeCEO/CNT/main/canales.json';
 const URL_M3U_CANALES_IPTV = 'https://iptv-org.github.io/iptv/categories/news.m3u'; // revisar https://github.com/iptv-org/api
 export const CLASE_CSS_BOTON_PRIMARIO = 'btn-indigo';
 export const CLASE_CSS_BOTON_SECUNDARIO = 'btn-dark-subtle'
