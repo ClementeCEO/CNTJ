@@ -1,7 +1,7 @@
 /* 
-    style v0.18
-    by Navezjt 
-    https://github.com/Navezjt/CNTJ
+    style v0.19
+    by Alplox 
+    https://github.com/Alplox/teles
 */
 
 :root {
@@ -465,7 +465,8 @@ pwa-update {
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
 }
 #modal-collapse-btn-group .container-btn-group,
-#offcanvas-collapse-btn-group .container-btn-group {
+#offcanvas-collapse-btn-group .container-btn-group,
+#modal-cambiar-canal-collapse-btn-group .container-btn-group {
   max-height: 8rem;
   overflow: auto;
 }
