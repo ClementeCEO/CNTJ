@@ -45,9 +45,9 @@ CHECKBOX_PERSONALIZAR_TEMA?.addEventListener('change', () => {
 
 // MARK: Botón compartir
 const DATOS_NAVIGATOR_SHARE = {
-    title: 'teles',
+    title: 'CNTJ',
     text: 'PWA Código Abierto para ver/comparar preseleccionadas transmisiones de noticias provenientes de Chile (y el mundo).',
-    url: 'https://alplox.github.io/teles/'
+    url: 'https://ClementeCEO.github.io/CNTJ/'
 };
 
 /**
@@ -101,7 +101,7 @@ function obtenerUrlCompartirConCanalesActivos() {
 
         return urlFinal;
     } catch (error) {
-        console.error('[teles] Error al generar URL para compartir con canales activos:', error);
+        console.error('[CNTJ] Error al generar URL para compartir con canales activos:', error);
         return DATOS_NAVIGATOR_SHARE.url;
     }
 }
@@ -115,7 +115,7 @@ if (navigator.share && BOTON_COMPARTIR) {
         try {
             await navigator.share(DATOS_NAVIGATOR_SHARE);
         } catch (err) {
-            console.error(`[teles] Error al compartir usando navigator.share: ${err}`);
+            console.error(`[CNTJ] Error al compartir usando navigator.share: ${err}`);
         }
     });
 } else {
