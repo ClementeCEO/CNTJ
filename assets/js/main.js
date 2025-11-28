@@ -1,7 +1,7 @@
 /* 
   main v0.21
   by Alplox 
-  https://github.com/Alplox/teles
+  https://github.com/ClementeCEO/CNTJ
 */
 
 // MARK: import
@@ -220,7 +220,7 @@ export const limpiarParametroCompartidoEnUrl = (forzar = false) => {
         parametroCompartidoLimpio = true;
         urlCompartidaActiva = false;
     } catch (error) {
-        console.error('[teles] Error al limpiar parámetro compartido de la URL:', error);
+        console.error('[CNTJ] Error al limpiar parámetro compartido de la URL:', error);
     }
 };
 
@@ -232,7 +232,7 @@ export const obtenerIdsCanalesActivos = () => {
         if (!datos || typeof datos !== 'object') return [];
         return Object.keys(datos);
     } catch (error) {
-        console.error('[teles] Error al obtener canales activos para URL dinámica:', error);
+        console.error('[CNTJ] Error al obtener canales activos para URL dinámica:', error);
         return [];
     }
 };
@@ -255,7 +255,7 @@ export const sincronizarParametroCanalesActivos = () => {
         parametroCompartidoLimpio = true;
         urlCompartidaActiva = false;
     } catch (error) {
-        console.error('[teles] Error al sincronizar URL dinámica:', error);
+        console.error('[CNTJ] Error al sincronizar URL dinámica:', error);
     }
 };
 
@@ -488,7 +488,7 @@ export let tele = {
             let transmisionPorRemover = document.querySelector(`div[data-canal="${canal}"]`);
 
             if (!transmisionPorRemover) {
-                console.warn(`[teles] Se intentó eliminar canal "${canal}" pero no se encontró ninguna transmisión activa. Se actualizará solo el estado visual.`);
+                console.warn(`[CNTJ] Se intentó eliminar canal "${canal}" pero no se encontró ninguna transmisión activa. Se actualizará solo el estado visual.`);
                 ajustarClaseBotonCanal(canal, false);
                 return;
             }
@@ -721,7 +721,7 @@ window.addEventListener('DOMContentLoaded', () => {
      */
     function inicializarPreferenciaCombinarListas() {
         if (!CHECKBOX_COMBINAR_LISTAS_PERSONALIZADAS || !SPAN_VALOR_COMBINAR_LISTAS_PERSONALIZADAS) {
-            console.warn('[teles] No se encontró el control para combinar listas personalizadas.');
+            console.warn('[CNTJ] No se encontró el control para combinar listas personalizadas.');
             return;
         }
 
@@ -766,7 +766,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 .map(id => id.trim())
                 .filter(id => id.length > 0 && listaCanales?.[id]);
         } catch (error) {
-            console.error('[teles] Error al leer canales compartidos desde la URL:', error);
+            console.error('[CNTJ] Error al leer canales compartidos desde la URL:', error);
             return [];
         }
     }
@@ -809,7 +809,7 @@ window.addEventListener('DOMContentLoaded', () => {
                             `No todos los canales compartidos se pudieron cargar (se cargaron ${canalesCompartidos.length} de ${totalCanalesSolicitados}). Es posible que algunos provengan de listas personalizadas o modos que no están disponibles en este navegador.`,
                             'info'
                         );
-                        console.info('[teles][compartir] Canales omitidos al cargar desde URL', {
+                        console.info('[CNTJ][compartir] Canales omitidos al cargar desde URL', {
                             totalSolicitados: totalCanalesSolicitados,
                             totalCargados: canalesCompartidos.length,
                             faltantes: diferencia
@@ -899,7 +899,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 try {
                     crearBotonesParaVisionUnica();
                 } catch (error) {
-                    console.error('[teles] Error al recrear botones de Visión única tras actualizar listas:', error);
+                    console.error('[CNTJ] Error al recrear botones de Visión única tras actualizar listas:', error);
                 }
             }
         }
@@ -916,7 +916,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 ajustarClaseBotonCanal(canalId, true);
             });
         } catch (error) {
-            console.error('[teles] Error al resincronizar estado visual de canales activos:', error);
+            console.error('[CNTJ] Error al resincronizar estado visual de canales activos:', error);
         }
     }
 
