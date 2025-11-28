@@ -59,7 +59,7 @@ export function crearBotonesParaModalCambiarCanal() {
         asignarEventosBotones();
         guardarOrdenOriginal('modal-cambiar-canal-body-botones-canales');
     } catch (error) {
-        console.error('[teles] Error al crear botones para el modal "Cambiar canal":', error);
+        console.error('[CNTJ] Error al crear botones para el modal "Cambiar canal":', error);
     }
 }
 
@@ -81,7 +81,7 @@ export function crearBotonesParaVisionUnica() {
         asignarEventosBotones();
         guardarOrdenOriginal('vision-unica-body-botones-canales');
     } catch (error) {
-        console.error('[teles] Error al crear botones para Visión Única:', error);
+        console.error('[CNTJ] Error al crear botones para Visión Única:', error);
     }
 }
 
