@@ -2,8 +2,8 @@ import { URL_JSON_CANALES_PRINCIPAL } from "./constants/configGlobal.js";
 import { sonNombresSimilares, M3U_A_JSON, validarTextoM3U } from "./helpers/index.js";
 
 // Gestión de backup y fetch de canales
-export const ARRAY_CANALES_PREDETERMINADOS = ['24-horas', 'meganoticias', 't13'];
-export const ARRAY_CANALES_PREDETERMINADOS_EXTRAS = ['chv-noticias', 'cnn-cl', 'lofi-girl'];
+export const ARRAY_CANALES_PREDETERMINADOS = ['asharq-news-Navez', 'abc7-swfl', 't13'];
+export const ARRAY_CANALES_PREDETERMINADOS_EXTRAS = ['noticias-caracol', 'latina-noticias', 'hostlivetv-CRISTIANA'];
 
 export let listaCanales;
 const LS_KEY_CANALES = 'backup-json-canales';
