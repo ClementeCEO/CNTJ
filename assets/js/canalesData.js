@@ -13,7 +13,7 @@ const LS_KEY_LISTAS_PERSONALIZADAS = 'listas-personalizadas-m3u';
 export const LS_KEY_COMBINAR_CANALES = 'combinar-canales-personalizados';
 const DEFAULT_COMBINAR_CANALES = true;
 
-export const ORIGEN_PREDETERMINADO = 'Canales predeterminados (github.com/Alplox/json-teles)';
+export const ORIGEN_PREDETERMINADO = 'Canales predeterminados (github.com/ClementeCEO/json-CNT)';
 
 export function esBackupValido() {
     const fechaStr = localStorage.getItem(LS_KEY_CANALES_FECHA);
