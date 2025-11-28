@@ -107,7 +107,7 @@ function combinarCanalesConLista(parseM3u = {}, { origen = 'lista-desconocida', 
     }
 
     const clavesM3u = Object.keys(parseM3u);
-    console.groupCollapsed(`[teles][m3u] Procesando ${clavesM3u.length} canales desde ${origen}`);
+    console.groupCollapsed(`[CNTJ][m3u] Procesando ${clavesM3u.length} canales desde ${origen}`);
     for (const nombreCanal of clavesM3u) {
         const datosNuevos = parseM3u[nombreCanal];
         const nombreParseM3u = datosNuevos.nombre ?? 'Canal sin nombre';
@@ -151,7 +151,7 @@ function combinarCanalesConLista(parseM3u = {}, { origen = 'lista-desconocida', 
             existingChannel.fuentesCombinadas = fuentesPrevias;
             existingChannel.esSeñalCombinada = existingChannel.fuentesCombinadas.length > 1;
 
-            console.info('[teles][m3u] Canal existente actualizado', {
+            console.info('[CNTJ][m3u] Canal existente actualizado', {
                 origen,
                 idInterno: nombreCanal,
                 nombre: nombreParseM3u,
@@ -168,7 +168,7 @@ function combinarCanalesConLista(parseM3u = {}, { origen = 'lista-desconocida', 
             const idResultado = obtenerIdCanalDisponible(nombreCanal, nombreParseM3u, origen);
             listaCanales[idResultado] = datosNuevos;
 
-            console.info('[teles][m3u] Canal nuevo añadido', {
+            console.info('[CNTJ][m3u] Canal nuevo añadido', {
                 origen,
                 idInterno: idResultado,
                 nombre: nombreParseM3u,
@@ -245,7 +245,7 @@ export function restaurarListasPersonalizadas() {
     const listas = leerListasPersonalizadas();
     const urls = Object.keys(listas).filter(url => listas[url]?.pinned !== false);
     if (!urls.length) return 0;
-    console.info(`[teles][m3u] Restaurando ${urls.length} listas personalizadas fijadas`);
+    console.info(`[CNTJ][m3u] Restaurando ${urls.length} listas personalizadas fijadas`);
     let restauradas = 0;
     urls.forEach(url => {
         try {
