@@ -1,13 +1,14 @@
 // Funciones para crear overlays y fragmentos de canal
 import { listaCanales } from './canalesData.js';
-import { LABEL_MODAL_CAMBIAR_CANAL, MODAL_CAMBIAR_CANAL, tele } from './main.js';
+import { LABEL_MODAL_CAMBIAR_CANAL, MODAL_CAMBIAR_CANAL, tele, registrarCambioManualCanales, limpiarRecursosTransmision } from './main.js';
+
 import {
     CODIGOS_PAISES,
     ICONOS_PARA_CATEGORIAS,
     AUDIO_POP,
     TWITCH_PARENT
 } from './constants/index.js';
-import { mostrarToast, playAudioSinDelay, hideTextoBotonesOverlay } from './helpers/index.js';
+import { mostrarToast, playAudioSinDelay, hideTextoBotonesOverlay, removerTooltipsBootstrap, activarTooltipsBootstrap } from './helpers/index.js';
 
 // Funciones de UI de canales extraídas de main.js
 function guardarSeñalPreferida(canalId, señalUtilizar = '', indexSeñalUtilizar = 0) {
@@ -43,6 +44,9 @@ export function crearIframe(canalId, tipoSeñalParaIframe, valorIndex = 0) {
     } else {
         IFRAME_ELEMENT.referrerPolicy = 'no-referrer';
     }
+
+    // Almacenamos la instancia del iframe para usarla en el futuro para limpiar recursos
+    DIV_ELEMENT._iframeElement = IFRAME_ELEMENT;
     DIV_ELEMENT.append(IFRAME_ELEMENT);
     return DIV_ELEMENT;
 }
@@ -69,13 +73,15 @@ export function crearVideoJs(canalId, urlCarga) {
                     width: '100%',
                     height: '100%'
                 });
-                // Almacenamos la instancia del reproductor para usarla en el futuro
-                playerContainer._clapprPlayer = clapprPlayer;
+                // Almacenamos la instancia del reproductor para usarla en el futuro para limpiar recursos
+                DIV_ELEMENT._clapprPlayer = clapprPlayer;
             } catch (error) {
                 console.error(`Error al inicializar Clappr para canal con id: ${canalId}. Error: ${error}`);
                 mostrarToast(`Error al inicializar Clappr para canal ${canalId}. Se usará Video.js.`, 'danger');
             }
         }, 0);
+
+      
         return DIV_ELEMENT;
     }
     if (tipoReproductor === 'oplayer' && typeof OPlayer !== 'undefined') {
@@ -112,12 +118,15 @@ export function crearVideoJs(canalId, urlCarga) {
                     instancia = instancia.use([OUI()]);
                 }
                 instancia.create();
+                // Almacenamos la instancia del reproductor para usarla en el futuro para limpiar recursos
+                DIV_ELEMENT._oplayerPlayer = instancia;
             } catch (error) {
                 console.error(`Error al inicializar OPlayer para canal con id: ${canalId}. Error: ${error}`);
                 mostrarToast(`Error al inicializar OPlayer para canal ${canalId}. Se usará Video.js.`, 'danger');
             }
         }, 0);
 
+       
         return DIV_ELEMENT;
     }
     const DIV_ELEMENT = document.createElement('div');
@@ -132,7 +141,10 @@ export function crearVideoJs(canalId, urlCarga) {
         videojs(videoElement).src({
             src: urlCarga,
         });
-        videojs(videoElement).autoplay('muted');
+        videojs(videoElement).autoplay(true);
+        videojs(videoElement).muted(true);
+        // Almacenamos la instancia del reproductor para usarla en el futuro para limpiar recursos
+        DIV_ELEMENT._videojsPlayer = videojs(videoElement);
     } catch (error) {
         console.error(`Error al inicializar Video.js para canal con id: ${canalId}. Error: ${error}`);
         mostrarToast(`Error al inicializar Video.js para canal ${canalId}. Se usará el siguiente canal.`, 'danger');
@@ -241,7 +253,7 @@ export function crearOverlay(canalId, tipoSeñalCargada, valorIndex = 0) {
         BOTON_SITIO_OFICIAL_CANAL.title = 'Ir a la página oficial de esta transmisión';
         if (tipoSeñalCargada === 'yt_id') sitio_oficial = `https://www.youtube.com/channel/${señales.yt_id}`;
         if (tipoSeñalCargada === 'twitch_id') sitio_oficial = `https://www.twitch.tv/${señales.twitch_id}`;
-        BOTON_SITIO_OFICIAL_CANAL.href = sitio_oficial !== '' ? sitio_oficial : `https://www.qwant.com/?q=${nombre}+en+vivo`;
+        BOTON_SITIO_OFICIAL_CANAL.href = sitio_oficial !== '' ? sitio_oficial : `https://www.duckduckgo.com/?q=${nombre}+en+vivo`;
         BOTON_SITIO_OFICIAL_CANAL.setAttribute('role', 'button');
         BOTON_SITIO_OFICIAL_CANAL.setAttribute('data-bs-toggle', 'tooltip');
         BOTON_SITIO_OFICIAL_CANAL.setAttribute('data-bs-title', 'Ir a la página oficial de esta transmisión');
@@ -287,8 +299,8 @@ export function crearOverlay(canalId, tipoSeñalCargada, valorIndex = 0) {
         <span class="bg-dark bg-opacity-25 px-2 rounded-3">Error: ${error}</span>
         <hr>
         Si error persiste tras recargar, prueba borrar tu almacenamiento local desde el panel "Personalización" o borrando la caché del navegador.
-        <button type="button" class="btn btn-light rounded-pill btn-sm w-100 border-light mt-2" onclick="location.reload()"> Pulsa para recargar <i class="bi bi-arrow-clockwise"></i></button>`, 'danger')
-        return
+        <button type="button" class="btn btn-light rounded-pill btn-sm w-100 border-light mt-2" onclick="location.reload()"> Pulsa para recargar <i class="bi bi-arrow-clockwise"></i></button>`, 'danger');
+        return;
     }
 }
 
@@ -315,8 +327,24 @@ export function crearFragmentCanal(canalId) {
         }
 
         if (lsPreferenciasSeñalCanales[canalId]) {
-            señalUtilizar = Object.keys(lsPreferenciasSeñalCanales[canalId])[0].toString()
-            valorIndexArraySeñal = Number(Object.values(lsPreferenciasSeñalCanales[canalId]))
+            const tipoPreferido = Object.keys(lsPreferenciasSeñalCanales[canalId])[0].toString();
+            const indicePreferido = Number(Object.values(lsPreferenciasSeñalCanales[canalId]));
+            const valorPreferido = listaCanales?.[canalId]?.señales?.[tipoPreferido];
+
+            let preferenciaValida = false;
+            if (Array.isArray(valorPreferido)) {
+                preferenciaValida = valorPreferido[indicePreferido] !== undefined;
+            } else if (typeof valorPreferido === 'string') {
+                preferenciaValida = valorPreferido.trim() !== '';
+            }
+
+            if (preferenciaValida) {
+                señalUtilizar = tipoPreferido;
+                valorIndexArraySeñal = indicePreferido;
+            } else {
+                delete lsPreferenciasSeñalCanales[canalId];
+                localStorage.setItem('preferencia-señal-canales', JSON.stringify(lsPreferenciasSeñalCanales));
+            }
         }
 
         const FRAGMENT_CANAL = document.createDocumentFragment();
@@ -351,6 +379,10 @@ export function cambiarSoloSeñalActiva(canalId) {
         let divExistenteACambiar = divPadreACambiar.querySelector(`div[data-canal-cambio="${canalId}"]`);
         let barraOverlayDeCanalACambiar = divPadreACambiar.querySelector(`#overlay-de-canal-${canalId}`);
 
+        removerTooltipsBootstrap();
+
+        limpiarRecursosTransmision(divPadreACambiar);
+
         divExistenteACambiar.remove();
         barraOverlayDeCanalACambiar.remove();
 
@@ -358,6 +390,8 @@ export function cambiarSoloSeñalActiva(canalId) {
 
         if (typeof activarTooltipsBootstrap === 'function') activarTooltipsBootstrap();
         if (typeof hideTextoBotonesOverlay === 'function') hideTextoBotonesOverlay();
+        if (typeof registrarCambioManualCanales === 'function') registrarCambioManualCanales();
+
     } catch (error) {
         console.error(`Error al intentar cambiar señal para canal con id: ${canalId}. Error: ${error}`);
         mostrarToast(`

@@ -1,11 +1,24 @@
 /* 
-  main v0.20
+  main v0.21
   by Alplox 
   https://github.com/Alplox/teles
 */
 
 // MARK: import
-import { fetchCargarCanales, fetchCargarCanalesIPTV, listaCanales } from './canalesData.js';
+import {
+    fetchCargarCanales,
+    cargarListaPersonalizadaM3U,
+    cargarListaPersonalizadaDesdeTexto,
+    restaurarListasPersonalizadas,
+    listaCanales,
+    obtenerListasPersonalizadas,
+    actualizarListaPersonalizada,
+    eliminarListaPersonalizada,
+    aplicarListaPersonalizadaGuardada,
+    obtenerPreferenciaCombinarCanales,
+    establecerPreferenciaCombinarCanales
+} from './canalesData.js';
+
 import { crearFragmentCanal, cambiarSoloSeñalActiva } from './canalUI.js';
 
 import {
@@ -24,7 +37,6 @@ import {
     iniciarRevisarConexion,
     mostrarToast,
     playAudioSinDelay,
-    quitarTodoCanalActivo,
     obtenerCanalesPredeterminados,
     guardarCanalesEnLocalStorage,
     ajustarClaseBotonCanal,
@@ -36,6 +48,8 @@ import {
     actualizarValorSlider,
     actualizarBotonesPersonalizarOverlay,
     crearBotonesParaCanales,
+    crearBotonesParaModalCambiarCanal,
+    crearBotonesParaVisionUnica,
     ajustarVisibilidadBotonesQuitarTodaSeñal,
     ajustarNumeroDivisionesClaseCol,
     filtrarCanalesPorInput,
@@ -44,14 +58,14 @@ import {
     ordenarBotonesCanalesDescendente,
     restaurarOrdenOriginalBotonesCanales,
     crearBotonesPaises,
+    crearBotonesCategorias,
     addSortEventListener,
     actualizarBotonesFlotantes,
     clicBotonPosicionBotonesFlotantes,
     cargarOrdenVisionUnica,
     CONTAINER_INTERNO_VISION_UNICA,
     guardarOrdenPanelesVisionUnica,
-    toggleClaseOrdenado,
-    reemplazarCanalActivo
+    toggleClaseOrdenado
 } from './helpers/index.js';
 
 const debounce = (fn, delay = 150) => {
@@ -63,6 +77,55 @@ const debounce = (fn, delay = 150) => {
 };
 
 const hideTextoBotonesOverlayDebounced = debounce(hideTextoBotonesOverlay, 150);
+
+/**
+ * Libera instancias de reproductores antes de eliminar el contenedor del DOM.
+ * @param {HTMLElement|null} contenedorTransmision Elemento <div data-canal> que aloja la transmisión.
+ * @returns {void}
+ */
+export const limpiarRecursosTransmision = (contenedorTransmision) => {
+    if (!contenedorTransmision) return;
+
+    const contenedorCambio = contenedorTransmision.querySelector('div[data-canal-cambio]');
+    const canal = contenedorTransmision?.dataset?.canal;
+
+    if (contenedorCambio?._videojsPlayer && typeof contenedorCambio._videojsPlayer.dispose === 'function') {
+        try {
+            const player = contenedorCambio._videojsPlayer;
+            if (player && typeof player.dispose === 'function') {
+                player.dispose();
+            }
+        } catch (errorVideojs) {
+            console.error(`Error al destruir Video.js para canal "${canal}":`, errorVideojs);
+        }
+    }
+
+    if (contenedorCambio?._clapprPlayer && typeof contenedorCambio._clapprPlayer.destroy === 'function') {
+        try {
+            contenedorCambio._clapprPlayer.destroy();
+        } catch (errorClappr) {
+            console.error(`Error al destruir Clappr para canal "${canal}":`, errorClappr);
+        }
+    }
+
+    if (contenedorCambio?._oplayerPlayer && typeof contenedorCambio._oplayerPlayer.destroy === 'function') {
+        try {
+            contenedorCambio._oplayerPlayer.destroy();
+        } catch (errorOplayer) {
+            console.error(`Error al destruir OPlayer para canal "${canal}":`, errorOplayer);
+        }
+    }
+
+    if (contenedorCambio?._iframeElement && typeof contenedorCambio._iframeElement.remove === 'function') {
+        try {
+            contenedorCambio._iframeElement.src = 'about:blank';
+            contenedorCambio._iframeElement.removeAttribute('srcdoc');
+            contenedorCambio._iframeElement.remove();
+        } catch (error) {
+            console.error(`Error al destruir iframe para canal "${canal}":`, error);
+        }
+    }
+};
 
 // MARK: querySelector Globales
 const MAIN_NAVBAR = document.querySelector('#navbar');
@@ -77,6 +140,15 @@ export const BOTON_ACTIVAR_VISION_GRID = document.querySelector('#boton-activar-
 export const MODAL_CAMBIAR_CANAL = document.querySelector('#modal-cambiar-canal');
 export const LABEL_MODAL_CAMBIAR_CANAL = document.querySelector('#label-para-nombre-canal-cambiar');
 
+const BOTON_CARGAR_LISTA_PERSONALIZADA = document.querySelector('#boton-cargar-lista-personalizada');
+const INPUT_URL_LISTA_PERSONALIZADA = document.querySelector('#input-url-lista-personalizada');
+const TEXTAREA_LISTA_PERSONALIZADA = document.querySelector('#textarea-lista-personalizada');
+const BOTON_PEGAR_LISTA_PERSONALIZADA = document.querySelector('#boton-pegar-lista-personalizada');
+const CONTENEDOR_LISTAS_PERSONALIZADAS = document.querySelector('#contenedor-listas-personalizadas');
+const TEXTO_LISTAS_VACIAS = CONTENEDOR_LISTAS_PERSONALIZADAS?.innerHTML ?? '<p class="text-secondary fs-smaller mb-0">No hay listas guardadas aún.</p>';
+const CHECKBOX_COMBINAR_LISTAS_PERSONALIZADAS = document.querySelector('#checkbox-combinar-listas-personalizadas');
+const SPAN_VALOR_COMBINAR_LISTAS_PERSONALIZADAS = document.querySelector('#span-valor-combinar-listas-personalizadas');
+
 // MARK: LocalStorage
 let lsModal = localStorage.getItem('modal-status') ?? 'show';
 let lsNavbar = localStorage.getItem('navbar-display');
@@ -87,6 +159,11 @@ let lsTextoBotonesFlotantes = localStorage.getItem('texto-botones-flotantes');
 let lsAlturaCanales = localStorage.getItem('uso-100vh');
 let lsFondo = localStorage.getItem('tarjeta-fondo-display');
 let lsReproductorM3u8 = localStorage.getItem('reproductor-m3u8') || 'videojs';
+const KEY_PREFERENCIA_URL_DINAMICA = 'preferencia-url-dinamica';
+let urlDinamicaHabilitada = localStorage.getItem(KEY_PREFERENCIA_URL_DINAMICA) === 'activa';
+let urlCompartidaActiva = false;
+let parametroCompartidoLimpio = false;
+let estaCargandoDesdeUrlCompartida = false;
 
 // MARK: PERSONALIZACIONES
 // Navbar
@@ -97,6 +174,110 @@ CHECKBOX_PERSONALIZAR_VISUALIZACION_NAVBAR.addEventListener('click', () => {
     MAIN_NAVBAR.classList.toggle('d-none', !CHECKBOX_PERSONALIZAR_VISUALIZACION_NAVBAR.checked);
     setCheckboxState(CHECKBOX_PERSONALIZAR_VISUALIZACION_NAVBAR, SPAN_VALOR_CHECKBOX_PERSONALIZAR_VISUALIZACION_NAVBAR, 'navbar-display', CHECKBOX_PERSONALIZAR_VISUALIZACION_NAVBAR.checked);
 });
+
+const CHECKBOX_URL_DINAMICA = document.querySelector('#checkbox-url-dinamica');
+const SPAN_VALOR_URL_DINAMICA = document.querySelector('#span-valor-url-dinamica');
+const ICONO_URL_DINAMICA = document.querySelector('#icono-url-dinamica');
+
+export const aplicarEstadoUrlDinamica = (activo) => {
+    if (!CHECKBOX_URL_DINAMICA) return;
+    CHECKBOX_URL_DINAMICA.checked = activo;
+    if (SPAN_VALOR_URL_DINAMICA) {
+        SPAN_VALOR_URL_DINAMICA.textContent = activo ? '[habilitada]' : '[deshabilitada]';
+    }
+    if (ICONO_URL_DINAMICA) {
+        ICONO_URL_DINAMICA.classList.toggle('text-success', activo);
+        ICONO_URL_DINAMICA.classList.toggle('text-secondary', !activo);
+    }
+};
+
+aplicarEstadoUrlDinamica(urlDinamicaHabilitada);
+
+CHECKBOX_URL_DINAMICA?.addEventListener('click', () => {
+    urlDinamicaHabilitada = CHECKBOX_URL_DINAMICA.checked;
+    localStorage.setItem(KEY_PREFERENCIA_URL_DINAMICA, urlDinamicaHabilitada ? 'activa' : 'inactiva');
+    aplicarEstadoUrlDinamica(urlDinamicaHabilitada);
+
+    if (urlDinamicaHabilitada) {
+        sincronizarParametroCanalesActivos();
+        mostrarToast('La URL reflejará tus canales activos automáticamente.', 'info');
+    } else {
+        limpiarParametroCompartidoEnUrl(true);
+        mostrarToast('La URL dejará de actualizarse automáticamente.', 'info');
+    }
+});
+
+export const limpiarParametroCompartidoEnUrl = (forzar = false) => {
+    if (!forzar && (!urlCompartidaActiva || parametroCompartidoLimpio)) return;
+    try {
+        const url = new URL(window.location.href);
+        if (!url.searchParams.has('c')) {
+            parametroCompartidoLimpio = true;
+            return;
+        }
+        url.searchParams.delete('c');
+        window.history.replaceState({}, document.title, url.toString());
+        parametroCompartidoLimpio = true;
+        urlCompartidaActiva = false;
+    } catch (error) {
+        console.error('[teles] Error al limpiar parámetro compartido de la URL:', error);
+    }
+};
+
+export const obtenerIdsCanalesActivos = () => {
+    try {
+        const payload = localStorage.getItem('canales-vision-cuadricula');
+        if (!payload) return [];
+        const datos = JSON.parse(payload);
+        if (!datos || typeof datos !== 'object') return [];
+        return Object.keys(datos);
+    } catch (error) {
+        console.error('[teles] Error al obtener canales activos para URL dinámica:', error);
+        return [];
+    }
+};
+
+export const sincronizarParametroCanalesActivos = () => {
+    if (!urlDinamicaHabilitada) return;
+    // En visión única nunca se debe tocar el parámetro `c` aunque la preferencia esté activa.
+    if (localStorage.getItem('diseño-seleccionado') === 'vision-unica') return;
+    try {
+        const urlActual = new URL(window.location.href);
+        const idsActivos = obtenerIdsCanalesActivos();
+
+        if (!idsActivos.length) {
+            urlActual.searchParams.delete('c');
+        } else {
+            urlActual.searchParams.set('c', idsActivos.join(','));
+        }
+
+        window.history.replaceState({}, document.title, urlActual.toString());
+        parametroCompartidoLimpio = true;
+        urlCompartidaActiva = false;
+    } catch (error) {
+        console.error('[teles] Error al sincronizar URL dinámica:', error);
+    }
+};
+
+/**
+ * Gestiona los cambios manuales realizados por usuario sobre los canales activos
+ * (añadir/quitar, mover de posición, etc.) y decide si sincronizar o limpiar el parámetro `c`.
+ * Respeta el flujo de carga inicial desde una URL compartida para no interferir.
+ * @param {{ forzar?: boolean }} [opciones]
+ * @returns {void}
+ */
+export function registrarCambioManualCanales({ forzar = false } = {}) {
+    if (!forzar && estaCargandoDesdeUrlCompartida) return;
+
+    // En modo "visión única" no usamos la URL dinámica ni el parámetro `c`.
+    if (localStorage.getItem('diseño-seleccionado') === 'vision-unica') return;
+
+    if (urlDinamicaHabilitada) {
+        sincronizarParametroCanalesActivos();
+    } else {
+        limpiarParametroCompartidoEnUrl(true);
+    }
+}
 
 // Overlay
 export const CHECKBOX_PERSONALIZAR_VISUALIZACION_OVERLAY = document.querySelector('#checkbox-personalizar-visualizacion-overlay');
@@ -266,7 +447,15 @@ export let tele = {
             if (!canal || !listaCanales?.[canal]) return console.error(`El canal "${canal}" proporcionado no es válido para ser añadido.`);
             const DIV_CANAL = document.createElement('div');
             DIV_CANAL.setAttribute('data-canal', canal);
-            if (localStorage.getItem('diseño-seleccionado') === 'vision-unica') {
+            const esVisionUnica = localStorage.getItem('diseño-seleccionado') === 'vision-unica';
+
+            if (esVisionUnica) {
+                // En visión única debe existir como máximo un canal activo.
+                const canalEnUso = CONTAINER_VIDEO_VISION_UNICA?.querySelector('div[data-canal]');
+                if (canalEnUso && canalEnUso.dataset.canal && canalEnUso.dataset.canal !== canal) {
+                    tele.remove(canalEnUso.dataset.canal);
+                }
+
                 DIV_CANAL.classList.add('position-relative', 'shadow', 'h-100', 'w-100');
                 DIV_CANAL.append(crearFragmentCanal(canal));
                 CONTAINER_VIDEO_VISION_UNICA.append(DIV_CANAL);
@@ -280,6 +469,7 @@ export let tele = {
             ajustarClaseBotonCanal(canal, true);
             activarTooltipsBootstrap();
             hideTextoBotonesOverlay();
+            registrarCambioManualCanales();
         } catch (error) {
             console.error(`Error durante creación div de canal con id: ${canal}. Error: ${error}`);
             mostrarToast(`
@@ -293,38 +483,25 @@ export let tele = {
         }
     },
     remove: (canal) => {
-
         try {
             if (!canal) return console.error(`El canal "${canal}" proporcionado no es válido para su eliminación.`);
             let transmisionPorRemover = document.querySelector(`div[data-canal="${canal}"]`);
 
-            // Buscar el elemento <video> dentro del contenedor específico del canal.
-            // Esto es necesario para obtener la instancia de Video.js y poder destruirla correctamente antes de eliminar el DOM.
-            // Evita que queden referencias vivas en memoria o que el reproductor siga ejecutando peticiones de red tras su remoción.
-            let videoElement = transmisionPorRemover.querySelector('video');
-            if (videoElement && videoElement.classList.contains('video-js')) {
-                let player = videojs(videoElement);
-                if (player) {
-                    console.log(`Disposing player for canal "${canal}"...`);
-                    player.dispose();
-                }
+            if (!transmisionPorRemover) {
+                console.warn(`[teles] Se intentó eliminar canal "${canal}" pero no se encontró ninguna transmisión activa. Se actualizará solo el estado visual.`);
+                ajustarClaseBotonCanal(canal, false);
+                return;
             }
 
-            const clapprContainer = transmisionPorRemover.querySelector('[contenedor-canal-cambio]');
-            if (clapprContainer && clapprContainer._clapprPlayer && typeof clapprContainer._clapprPlayer.destroy === 'function') {
-                try {
-                    console.log(`Destroying Clappr player for canal "${canal}"...`);
-                    clapprContainer._clapprPlayer.destroy();
-                } catch (errorClappr) {
-                    console.error(`Error al destruir Clappr para canal "${canal}":`, errorClappr);
-                }
-            }
-
+            // Limpiar recursos antes de eliminar el contenedor; iframe, videojs, clappr, oplayer
+            limpiarRecursosTransmision(transmisionPorRemover);
+            // Remover tooltips; botones flotantes overlay
             removerTooltipsBootstrap();
+            // Eliminar el contenedor del DOM
             transmisionPorRemover.remove();
 
             const esVisionUnica = CONTAINER_VIDEO_VISION_UNICA && CONTAINER_VIDEO_VISION_UNICA.contains(transmisionPorRemover);
-
+            // Si es visión única, mostrar el icono de sin señal activa
             if (esVisionUnica || localStorage.getItem('diseño-seleccionado') === 'vision-unica') {
                 ICONO_SIN_SEÑAL_ACTIVA_VISION_UNICA.classList.remove('d-none');
             } else {
@@ -333,6 +510,7 @@ export let tele = {
 
             ajustarClaseBotonCanal(canal, false);
             activarTooltipsBootstrap();
+            registrarCambioManualCanales();
         } catch (error) {
             console.error(`Error durante eliminación div de canal con id: ${canal}. Error: ${error}`);
             mostrarToast(`
@@ -406,6 +584,7 @@ new Sortable(CONTAINER_VISION_CUADRICULA, {
     onEnd: () => {
         activarTooltipsBootstrap();
         guardarCanalesEnLocalStorage();
+        registrarCambioManualCanales();
     }
 });
 
@@ -434,6 +613,7 @@ new Sortable(CONTAINER_INTERNO_VISION_UNICA, {
             guardarOrdenPanelesVisionUnica();
             activarTooltipsBootstrap();
             toggleClaseOrdenado();
+            registrarCambioManualCanales();
         } catch (e) {
             console.error('Error en onEnd Sortable:', e);
         }
@@ -448,9 +628,10 @@ window.addEventListener('DOMContentLoaded', () => {
     detectarTemaSistema();
     iniciarRevisarConexion();
     MODAL_CAMBIAR_CANAL.addEventListener('shown.bs.modal', () => {
-        document.querySelectorAll('#modal-cambiar-canal-body-botones-canales button').forEach(boton => {
-            boton.addEventListener('click', () => reemplazarCanalActivo(boton.dataset.canal, LABEL_MODAL_CAMBIAR_CANAL.getAttribute('id-canal-cambio')));
-        });
+        const contenedorCambiar = document.querySelector('#modal-cambiar-canal-body-botones-canales');
+        if (contenedorCambiar && !contenedorCambiar.querySelector('button[data-canal]')) {
+            crearBotonesParaModalCambiarCanal();
+        }
     });
 
     MODAL_CAMBIAR_CANAL.addEventListener('hidden.bs.modal', () => {
@@ -475,8 +656,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Navbar
     lsNavbar !== 'hide'
-        ? (MAIN_NAVBAR.classList.remove('d-none'), setCheckboxState(CHECKBOX_PERSONALIZAR_VISUALIZACION_NAVBAR, SPAN_VALOR_CHECKBOX_PERSONALIZAR_VISUALIZACION_NAVBAR, 'navbar-display', true))
-        : (MAIN_NAVBAR.classList.add('d-none'), setCheckboxState(CHECKBOX_PERSONALIZAR_VISUALIZACION_NAVBAR, SPAN_VALOR_CHECKBOX_PERSONALIZAR_VISUALIZACION_NAVBAR, 'navbar-display', false));
+        ? (setCheckboxState(CHECKBOX_PERSONALIZAR_VISUALIZACION_NAVBAR, SPAN_VALOR_CHECKBOX_PERSONALIZAR_VISUALIZACION_NAVBAR, 'navbar-display', true))
+        : (setCheckboxState(CHECKBOX_PERSONALIZAR_VISUALIZACION_NAVBAR, SPAN_VALOR_CHECKBOX_PERSONALIZAR_VISUALIZACION_NAVBAR, 'navbar-display', false));
 
     // Posición botones flotante
 
@@ -533,19 +714,119 @@ window.addEventListener('DOMContentLoaded', () => {
         ICONO_PERSONALIZAR_VISUALIZACION_TARJETA_LOGO_BACKGROUND.classList.replace('bi-eye', 'bi-eye-slash');
     }
 
+    /**
+     * Inicializa y sincroniza el switch para combinar canales similares entre listas personalizadas.
+     * Actualiza el texto auxiliar y persiste la preferencia en localStorage.
+     * @returns {void}
+     */
+    function inicializarPreferenciaCombinarListas() {
+        if (!CHECKBOX_COMBINAR_LISTAS_PERSONALIZADAS || !SPAN_VALOR_COMBINAR_LISTAS_PERSONALIZADAS) {
+            console.warn('[teles] No se encontró el control para combinar listas personalizadas.');
+            return;
+        }
+
+        const obtenerEtiquetaEstado = (estado) => estado ? 'Combinar coincidencias' : 'Mantener listas separadas';
+
+        const aplicarEstado = (estado) => {
+            CHECKBOX_COMBINAR_LISTAS_PERSONALIZADAS.checked = estado;
+            SPAN_VALOR_COMBINAR_LISTAS_PERSONALIZADAS.textContent = obtenerEtiquetaEstado(estado);
+        };
+
+        const estadoInicial = obtenerPreferenciaCombinarCanales();
+        aplicarEstado(estadoInicial);
+
+        CHECKBOX_COMBINAR_LISTAS_PERSONALIZADAS.addEventListener('change', () => {
+            const nuevoEstado = CHECKBOX_COMBINAR_LISTAS_PERSONALIZADAS.checked;
+            establecerPreferenciaCombinarCanales(nuevoEstado);
+            aplicarEstado(nuevoEstado);
+            mostrarToast(
+                nuevoEstado
+                    ? 'Se combinarán canales similares al importar listas personalizadas.'
+                    : 'Se mantendrán separados los canales aun cuando existan coincidencias.',
+                nuevoEstado ? 'success' : 'info'
+            );
+        }, { once: false });
+    }
+
+    inicializarPreferenciaCombinarListas();
+
+    /**
+     * Obtiene la lista de IDs de canales compartidos a través del parámetro `c` en la URL.
+     * El formato esperado es una lista separada por comas, por ejemplo: ?c=24-horas,meganoticias,t13
+     * @returns {string[]} Arreglo de IDs de canales válidos.
+     */
+    function obtenerCanalesCompartidosDesdeUrl() {
+        try {
+            const url = new URL(window.location.href);
+            const param = url.searchParams.get('c');
+            if (!param) return [];
+
+            return param
+                .split(',')
+                .map(id => id.trim())
+                .filter(id => id.length > 0 && listaCanales?.[id]);
+        } catch (error) {
+            console.error('[teles] Error al leer canales compartidos desde la URL:', error);
+            return [];
+        }
+    }
+
     async function cargaInicial() {
         try {
             await fetchCargarCanales();
             if (listaCanales) {
+                const listasRestauradas = restaurarListasPersonalizadas();
                 crearBotonesParaCanales();
                 crearBotonesPaises();
+                crearBotonesCategorias();
                 borraPreferenciaSeñalInvalida();
-                lsEstiloVision === 'vision-unica' ? activarVisionUnica() : tele.cargaCanalesPredeterminados();
+
+                const urlActual = new URL(window.location.href);
+                const paramCompartidos = urlActual.searchParams.get('c');
+                const totalCanalesSolicitados = paramCompartidos
+                    ? paramCompartidos
+                        .split(',')
+                        .map(id => id.trim())
+                        .filter(id => id.length > 0).length
+                    : 0;
+
+                const canalesCompartidos = obtenerCanalesCompartidosDesdeUrl();
+
+                if (canalesCompartidos.length > 0) {
+                    urlCompartidaActiva = true;
+                    estaCargandoDesdeUrlCompartida = true;
+                    if (lsEstiloVision === 'vision-unica') {
+                        desactivarVisionUnica({ evitarCargaPredeterminados: true });
+                        lsEstiloVision = 'vision-grid';
+                        localStorage.setItem('diseño-seleccionado', 'vision-grid');
+                    }
+                    canalesCompartidos.forEach(canalId => tele.add(canalId));
+                    estaCargandoDesdeUrlCompartida = false;
+
+                    if (totalCanalesSolicitados > canalesCompartidos.length) {
+                        const diferencia = totalCanalesSolicitados - canalesCompartidos.length;
+                        mostrarToast(
+                            `No todos los canales compartidos se pudieron cargar (se cargaron ${canalesCompartidos.length} de ${totalCanalesSolicitados}). Es posible que algunos provengan de listas personalizadas o modos que no están disponibles en este navegador.`,
+                            'info'
+                        );
+                        console.info('[teles][compartir] Canales omitidos al cargar desde URL', {
+                            totalSolicitados: totalCanalesSolicitados,
+                            totalCargados: canalesCompartidos.length,
+                            faltantes: diferencia
+                        });
+                    }
+                } else {
+                    lsEstiloVision === 'vision-unica' ? activarVisionUnica() : tele.cargaCanalesPredeterminados();
+                }
+
                 actualizarBotonesPersonalizarOverlay()
                 ajustarClaseColTransmisionesPorFila(localStorage.getItem('numero-class-columnas-por-fila') ?? (isMobile.any ? VALOR_COL_FIJO_TELEFONO : VALOR_COL_FIJO_ESCRITORIO))
                 hideTextoBotonesOverlay()
                 activarTooltipsBootstrap();
-                ajustarVisibilidadBotonesQuitarTodaSeñal();
+
+                if (listasRestauradas > 0) {
+                    renderizarListasPersonalizadasUI();
+                }
             }
         } catch (error) {
             console.error(`Error durante carga inicial. Error: ${error}`);
@@ -560,6 +841,7 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
     cargaInicial();
+
     cargarOrdenVisionUnica();
 
     // Ordenar botones canales
@@ -587,39 +869,271 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     localStorage.setItem('modo-experimental', 'inactivo');
-    const BOTON_EXPERIMENTAL = document.querySelector('#boton-experimental');
-    BOTON_EXPERIMENTAL.addEventListener('click', async () => {
+
+    renderizarListasPersonalizadasUI();
+
+    function limpiarContenedoresListadosCanales({ resaltarExperimental = false } = {}) {
+        for (const PREFIJO of PREFIJOS_ID_CONTENEDORES_CANALES) {
+            const contenedorBotones = document.querySelector(`#${PREFIJO}-body-botones-canales`);
+            const contenedorPaises = document.querySelector(`#${PREFIJO}-collapse-botones-listado-filtro-paises`);
+            const contenedorCategorias = document.querySelector(`#${PREFIJO}-collapse-botones-listado-filtro-categorias`);
+            if (contenedorBotones) {
+                if (resaltarExperimental) {
+                    contenedorBotones.classList.add('border', 'border-warning', 'rounded-3');
+                }
+                contenedorBotones.innerHTML = '';
+            }
+            if (contenedorPaises) {
+                contenedorPaises.innerHTML = '';
+            }
+            if (contenedorCategorias) {
+                contenedorCategorias.innerHTML = '';
+            }
+        }
+
+        // Si el usuario está en visión única, volvemos a crear los botones de esa vista
+        // para que no quede vacío el panel tras cargar o aplicar listas M3U.
+        if (localStorage.getItem('diseño-seleccionado') === 'vision-unica') {
+            const contenedorVisionUnica = document.querySelector('#vision-unica-body-botones-canales');
+            if (contenedorVisionUnica) {
+                try {
+                    crearBotonesParaVisionUnica();
+                } catch (error) {
+                    console.error('[teles] Error al recrear botones de Visión única tras actualizar listas:', error);
+                }
+            }
+        }
+    }
+
+    function resincronizarEstadoVisualCanalesActivos() {
         try {
-            if (localStorage.getItem('modo-experimental') !== 'activo') {
-                BOTON_EXPERIMENTAL.querySelector('span').textContent = 'Cargando...'
-                await fetchCargarCanalesIPTV();
-                localStorage.setItem('modo-experimental', 'activo');
-                for (const PREFIJO of PREFIJOS_ID_CONTENEDORES_CANALES) {
-                    document.querySelector(`#${PREFIJO}-body-botones-canales`).classList.add('border', 'border-warning', 'rounded-3')
-                    document.querySelector(`#${PREFIJO}-body-botones-canales`).innerHTML = '';
-                    document.querySelector(`#${PREFIJO}-collapse-botones-listado-filtro-paises`).innerHTML = '';
-                };
-                quitarTodoCanalActivo()
+            const transmisionesActivas = document.querySelectorAll('div[data-canal]');
+            if (!transmisionesActivas.length) return;
+
+            transmisionesActivas.forEach(transmision => {
+                const canalId = transmision.getAttribute('data-canal');
+                if (!canalId) return;
+                ajustarClaseBotonCanal(canalId, true);
+            });
+        } catch (error) {
+            console.error('[teles] Error al resincronizar estado visual de canales activos:', error);
+        }
+    }
+
+    function renderizarListasPersonalizadasUI() {
+        if (!CONTENEDOR_LISTAS_PERSONALIZADAS) return;
+        const listas = obtenerListasPersonalizadas();
+        const urls = Object.keys(listas);
+        if (!urls.length) {
+            CONTENEDOR_LISTAS_PERSONALIZADAS.innerHTML = TEXTO_LISTAS_VACIAS;
+            return;
+        }
+        const fragment = document.createDocumentFragment();
+        urls.sort((a, b) => {
+            const etiquetaA = listas[a]?.etiqueta || a;
+            const etiquetaB = listas[b]?.etiqueta || b;
+            return etiquetaA.localeCompare(etiquetaB, 'es', { sensitivity: 'base' });
+        }).forEach(url => {
+            fragment.append(crearTarjetaListaPersonalizada(url, listas[url]));
+        });
+        CONTENEDOR_LISTAS_PERSONALIZADAS.innerHTML = '';
+        CONTENEDOR_LISTAS_PERSONALIZADAS.append(fragment);
+    }
+
+    function crearTarjetaListaPersonalizada(url, data = {}) {
+        const card = document.createElement('div');
+        card.classList.add('bg-body-secondary', 'bg-opacity-10', 'rounded-3', 'p-2', 'border', 'border-light-subtle', 'mb-2');
+        const etiqueta = data.etiqueta || url;
+        const pinned = data.pinned !== false;
+
+        const encabezado = document.createElement('div');
+        encabezado.classList.add('d-flex', 'justify-content-between', 'align-items-start', 'gap-2');
+
+        const bloqueInfo = document.createElement('div');
+        bloqueInfo.innerHTML = `
+            <p class="fw-semibold mb-0">${etiqueta}</p>
+            <small class="text-secondary text-break">${url}</small><br>
+            <small class="text-secondary">Actualizado: ${formatearFecha(data.actualizado)}</small>
+        `;
+
+        const bloqueAcciones = document.createElement('div');
+        bloqueAcciones.classList.add('d-flex', 'flex-column', 'gap-1');
+
+        const botonPin = document.createElement('button');
+        botonPin.type = 'button';
+        botonPin.className = `btn btn-sm ${pinned ? 'btn-success' : 'btn-outline-secondary'}`;
+        botonPin.innerHTML = pinned ? '<i class="bi bi-pin-angle-fill"></i> Fijada' : '<i class="bi bi-pin-angle"></i> No fijada';
+        botonPin.addEventListener('click', () => {
+            const estadoActual = (obtenerListasPersonalizadas()[url]?.pinned !== false);
+            const nuevoEstado = !estadoActual;
+            actualizarListaPersonalizada(url, { pinned: nuevoEstado });
+            renderizarListasPersonalizadasUI();
+            mostrarToast(
+                nuevoEstado ? `La lista "${etiqueta}" se restaurará al recargar.` : `La lista "${etiqueta}" ya no se restaurará automáticamente.`,
+                nuevoEstado ? 'success' : 'info'
+            );
+        });
+
+        const botonAplicar = document.createElement('button');
+        botonAplicar.type = 'button';
+        botonAplicar.className = 'btn btn-sm btn-outline-primary';
+        botonAplicar.innerHTML = '<i class="bi bi-arrow-repeat"></i> Aplicar';
+        botonAplicar.addEventListener('click', () => {
+            const exito = aplicarListaPersonalizadaGuardada(url);
+            if (exito) {
+                limpiarContenedoresListadosCanales();
                 crearBotonesParaCanales();
                 crearBotonesPaises();
+                crearBotonesCategorias();
+                resincronizarEstadoVisualCanalesActivos();
 
-                mostrarToast('Modo experimental activado. Se han combinado listas de canales y sus señales m3u8.', 'warning')
+                mostrarToast(`Lista "${etiqueta}" aplicada correctamente.`, 'success');
             } else {
-                playAudioSinDelay(AUDIO_FAIL);
-                mostrarToast('Ya estas en modo experimental. Revisa los canales que se cargaron. Para regresar al modo normal recarga la página. <br> <button type="button" class="btn btn-light rounded-pill btn-sm w-100 border-light mt-2" onclick="location.reload()"> Pulsa para recargar <i class="bi bi-arrow-clockwise"></i></button>', 'info');
+                mostrarToast('No fue posible aplicar la lista seleccionada.', 'danger');
             }
-        } catch (error) {
-            console.error(`Error al intentar activar modo experimental. Error: ${error}`);
-            mostrarToast(`
-            <span class="fw-bold">Ha ocurrido un error al intentar activar modo experimental.</span>
-            <hr>
-            <span class="bg-dark bg-opacity-25 px-2 rounded-3">Error: ${error}</span>
-            <hr>
-            Si error persiste tras recargar, prueba borrar tu almacenamiento local desde el panel "Personalización" o borrando la caché del navegador.
-            <button type="button" class="btn btn-light rounded-pill btn-sm w-100 border-light mt-2" onclick="location.reload()"> Pulsa para recargar <i class="bi bi-arrow-clockwise"></i></button>`, 'danger', false)
-            return
-        } finally {
-            BOTON_EXPERIMENTAL.querySelector('span').textContent = 'Activar modo experimental canales IPTV'
+        });
+
+        const botonEliminar = document.createElement('button');
+        botonEliminar.type = 'button';
+        botonEliminar.className = 'btn btn-sm btn-outline-danger';
+        botonEliminar.innerHTML = '<i class="bi bi-trash"></i> Quitar';
+        botonEliminar.addEventListener('click', () => {
+            if (!window.confirm(`¿Eliminar la lista "${etiqueta}" y sus canales asociados?`)) return;
+            eliminarListaPersonalizada(url);
+            const eliminados = eliminarCanalesPorFuente(url);
+            limpiarContenedoresListadosCanales();
+            crearBotonesParaCanales();
+            crearBotonesPaises();
+            crearBotonesCategorias();
+            resincronizarEstadoVisualCanalesActivos();
+
+            renderizarListasPersonalizadasUI();
+            mostrarToast(`Lista eliminada. ${eliminados} canal(es) removidos.`, 'warning');
+        });
+
+        bloqueAcciones.append(botonPin, botonAplicar, botonEliminar);
+        encabezado.append(bloqueInfo, bloqueAcciones);
+        card.append(encabezado);
+        return card;
+    }
+
+    function formatearFecha(fechaISO) {
+        if (!fechaISO) return 'sin registro';
+        try {
+            return new Date(fechaISO).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' });
+        } catch {
+            return fechaISO;
         }
-    });
+    }
+
+    function eliminarCanalesPorFuente(fuente) {
+        if (!fuente || !listaCanales) return 0;
+        let eliminados = 0;
+
+        Object.keys(listaCanales).forEach(canalId => {
+            if (listaCanales[canalId]?.fuenteLista === fuente) {
+                try {
+                    tele.remove?.(canalId);
+                } catch (error) {
+                    console.warn(`No se pudo remover canal activo ${canalId}:`, error);
+                }
+                delete listaCanales[canalId];
+                eliminados++;
+            }
+        });
+        return eliminados;
+    }
+
+    if (BOTON_CARGAR_LISTA_PERSONALIZADA && INPUT_URL_LISTA_PERSONALIZADA) {
+        const textoOriginalBoton = BOTON_CARGAR_LISTA_PERSONALIZADA.innerHTML;
+        const toggleEstadoBoton = (cargando) => {
+            if (cargando) {
+                BOTON_CARGAR_LISTA_PERSONALIZADA.disabled = true;
+                BOTON_CARGAR_LISTA_PERSONALIZADA.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Cargando...';
+            } else {
+                BOTON_CARGAR_LISTA_PERSONALIZADA.disabled = false;
+                BOTON_CARGAR_LISTA_PERSONALIZADA.innerHTML = textoOriginalBoton;
+            }
+        };
+
+        BOTON_CARGAR_LISTA_PERSONALIZADA.addEventListener('click', async () => {
+            const urlLista = INPUT_URL_LISTA_PERSONALIZADA.value.trim();
+            if (!urlLista) {
+                mostrarToast('Ingresa la URL a tu archivo .m3u antes de cargarla.', 'warning');
+                INPUT_URL_LISTA_PERSONALIZADA.focus();
+                return;
+            }
+
+            try {
+                new URL(urlLista);
+            } catch {
+                mostrarToast('La URL ingresada no es válida. Verifica que comience con http(s)://', 'warning');
+                INPUT_URL_LISTA_PERSONALIZADA.focus();
+                return;
+            }
+
+            toggleEstadoBoton(true);
+            try {
+                await cargarListaPersonalizadaM3U(urlLista);
+                limpiarContenedoresListadosCanales();
+                crearBotonesParaCanales();
+                crearBotonesPaises();
+                crearBotonesCategorias();
+                resincronizarEstadoVisualCanalesActivos();
+                activarTooltipsBootstrap();
+
+                renderizarListasPersonalizadasUI();
+                mostrarToast('Lista personalizada cargada correctamente. Los nuevos canales se añadieron al final.', 'success');
+            } catch (error) {
+                console.error('Error al cargar lista personalizada M3U:', error);
+                mostrarToast('No fue posible cargar la lista personalizada. Verifica la URL o si el servidor permite descargas (CORS).', 'danger');
+            } finally {
+                toggleEstadoBoton(false);
+            }
+        });
+    }
+
+    if (BOTON_PEGAR_LISTA_PERSONALIZADA && TEXTAREA_LISTA_PERSONALIZADA) {
+        const textoOriginalBotonPegado = BOTON_PEGAR_LISTA_PERSONALIZADA.innerHTML;
+        const toggleBotonPegado = (cargando) => {
+            if (cargando) {
+                BOTON_PEGAR_LISTA_PERSONALIZADA.disabled = true;
+                BOTON_PEGAR_LISTA_PERSONALIZADA.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Procesando...';
+            } else {
+                BOTON_PEGAR_LISTA_PERSONALIZADA.disabled = false;
+                BOTON_PEGAR_LISTA_PERSONALIZADA.innerHTML = textoOriginalBotonPegado;
+            }
+        };
+
+        BOTON_PEGAR_LISTA_PERSONALIZADA.addEventListener('click', async () => {
+            const contenidoLista = TEXTAREA_LISTA_PERSONALIZADA.value.trim();
+            if (!contenidoLista) {
+                mostrarToast('Pega el contenido completo de tu archivo .m3u antes de continuar.', 'warning');
+                TEXTAREA_LISTA_PERSONALIZADA.focus();
+                return;
+            }
+
+            toggleBotonPegado(true);
+            try {
+                const etiquetaManual = `Lista manual ${new Date().toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' })}`;
+                await cargarListaPersonalizadaDesdeTexto(contenidoLista, { etiqueta: etiquetaManual });
+                TEXTAREA_LISTA_PERSONALIZADA.value = '';
+                limpiarContenedoresListadosCanales();
+                crearBotonesParaCanales();
+                crearBotonesPaises();
+                crearBotonesCategorias();
+                resincronizarEstadoVisualCanalesActivos();
+
+                renderizarListasPersonalizadasUI();
+                mostrarToast('Lista manual cargada correctamente. Los nuevos canales se añadieron al final.', 'success');
+            } catch (error) {
+                console.error('Error al procesar lista pegada manualmente:', error);
+                mostrarToast(error?.message ?? 'No fue posible procesar el texto pegado. Revisa el formato del archivo .m3u.', 'danger');
+            } finally {
+                toggleBotonPegado(false);
+            }
+        });
+    }
+
+    ajustarVisibilidadBotonesQuitarTodaSeñal()
 });
