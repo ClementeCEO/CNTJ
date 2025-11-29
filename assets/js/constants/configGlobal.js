@@ -1,4 +1,4 @@
-export const URL_JSON_CANALES_PRINCIPAL = 'https://cdn.jsdelivr.net/gh/ClementeCEO/CNT@main/canales.json';
+export const URL_JSON_CANALES_PRINCIPAL = 'https://raw.githubusercontent.com/ClementeCEO/CNT/refs/heads/main/canales.json';
 export const TWITCH_PARENT = 'ClementeCEO.github.io'
 
 export const CLASE_CSS_BOTON_PRIMARIO = 'btn-indigo';
