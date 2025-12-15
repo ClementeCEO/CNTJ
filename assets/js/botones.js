@@ -49,9 +49,9 @@ if (navigator.userAgent.toLowerCase().includes('firefox')) {
 
 // MARK: Botón compartir
 const DATOS_NAVIGATOR_SHARE = {
-    title: 'teles',
+    title: 'CNTJ',
     text: 'PWA Código Abierto para ver/comparar preseleccionadas transmisiones de noticias provenientes de Chile (y el mundo).',
-    url: 'https://alplox.github.io/teles/'
+    url: 'https://ClementeCEO.github.io/CNTJ/'
 };
 
 /**
