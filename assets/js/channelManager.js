@@ -3,13 +3,13 @@ import { LS_KEY_CHANNELS_BACKUP, LS_KEY_CHANNELS_BACKUP_DATE, LS_KEY_COMBINE_PER
 import { m3uToJson, validateM3UContent } from "./helpers/index.js";
 
 // Backup and channel fetch management
-export const DEFAULT_CHANNELS_ARRAY = ['24-horas', 'meganoticias', 't13'];
-export const EXTRA_DEFAULT_CHANNELS_ARRAY = ['chv-noticias', 'cnn-cl', 'lofi-girl'];
+export const DEFAULT_CHANNELS_ARRAY = ['asharq-news-Navez', 'abc7-swfl', 't13'];
+export const EXTRA_DEFAULT_CHANNELS_ARRAY = ['noticias-caracol', 'latina-noticias', 'hostlivetv-CRISTIANA'];
 
 export let channelsList;
 
 export const BACKUP_EXPIRATION_HOURS = 24;
-export const DEFAULT_SOURCE_ORIGIN = 'Canales predeterminados (github.com/Alplox/json-teles)';
+export const DEFAULT_SOURCE_ORIGIN = 'Canales predeterminados (github.com/ClementeCEO/CNT)';
 
 /**
  * Checks if the stored backup is valid based on expiration time.
