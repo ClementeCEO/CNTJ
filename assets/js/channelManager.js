@@ -9,7 +9,7 @@ export const EXTRA_DEFAULT_CHANNELS_ARRAY = ['chv-noticias', 'cnn-cl', 'lofi-gir
 export let channelsList;
 
 export const BACKUP_EXPIRATION_HOURS = 24;
-export const DEFAULT_SOURCE_ORIGIN = 'Canales predeterminados (github.com/Alplox/json-teles)';
+export const DEFAULT_SOURCE_ORIGIN = 'Canales predeterminados (github.com/ClementeCEO/CNT)';
 
 /**
  * Checks if the stored backup is valid based on expiration time.
@@ -56,7 +56,7 @@ let initialChannelsListBackup = null;
 export async function fetchLoadChannels() {
     try {
         if (isBackupValid()) {
-            console.info('[teles] Loading channels from localStorage backup');
+            console.info('[CNTJ] Loading channels from localStorage backup');
             channelsList = readChannelBackup();
             if (channelsList) {
                 // Save in-memory copy for fast restoration
@@ -64,7 +64,7 @@ export async function fetchLoadChannels() {
                 return;
             }
         }
-        console.info('[teles] Attempting to load main channel file');
+        console.info('[CNTJ] Attempting to load main channel file');
         const response = await fetch(URL_JSON_MAIN_CHANNELS);
         try {
             channelsList = await response.json();
@@ -74,10 +74,10 @@ export async function fetchLoadChannels() {
             // Save in-memory copy
             initialChannelsListBackup = JSON.parse(JSON.stringify(channelsList));
         } catch (parseError) {
-            console.error('[teles] Error parsing main JSON', parseError);
+            console.error('[CNTJ] Error parsing main JSON', parseError);
             // Try loading backup if exists
             if (isBackupValid()) {
-                console.warn('[teles] Using channel list backup from localStorage due to parsing error');
+                console.warn('[CNTJ] Using channel list backup from localStorage due to parsing error');
                 channelsList = readChannelBackup();
                 if (channelsList) {
                     initialChannelsListBackup = JSON.parse(JSON.stringify(channelsList));
@@ -101,7 +101,7 @@ export function restoreChannelsFromMemory() {
         channelsList = JSON.parse(JSON.stringify(initialChannelsListBackup));
     } else {
         // Fallback in case there is no memory backup (rare)
-        console.warn('[teles] No memory backup found, fetching channels again...');
+        console.warn('[CNTJ] No memory backup found, fetching channels again...');
         return fetchLoadChannels();
     }
 }
@@ -166,7 +166,7 @@ function combineChannelsWithList(parseM3u = {}, { origin = 'unknown-list', sourc
     }
 
     const m3uKeys = Object.keys(parseM3u);
-    console.groupCollapsed(`[teles][m3u] Processing ${m3uKeys.length} channels from ${origin}`);
+    console.groupCollapsed(`[CNTJ][m3u] Processing ${m3uKeys.length} channels from ${origin}`);
     for (const channelName of m3uKeys) {
         const newData = parseM3u[channelName];
         const parsedM3uName = newData.nombre ?? 'Canal sin nombre';
@@ -210,7 +210,7 @@ function combineChannelsWithList(parseM3u = {}, { origin = 'unknown-list', sourc
             existingChannel.fuentesCombinadas = previousSources;
             existingChannel.esSeñalCombinada = existingChannel.fuentesCombinadas.length > 1;
 
-            console.info('[teles][m3u] Existing channel updated', {
+            console.info('[CNTJ][m3u] Existing channel updated', {
                 origin,
                 internalId: channelName,
                 name: parsedM3uName,
@@ -227,7 +227,7 @@ function combineChannelsWithList(parseM3u = {}, { origin = 'unknown-list', sourc
             const resultId = getAvailableChannelId(channelName, parsedM3uName, origin);
             channelsList[resultId] = newData;
 
-            console.info('[teles][m3u] New channel added', {
+            console.info('[CNTJ][m3u] New channel added', {
                 origin,
                 internalId: resultId,
                 name: parsedM3uName,
@@ -251,7 +251,7 @@ export async function loadPersonalizedM3UList(url) {
         throw new Error('Debes proporcionar una URL válida a un archivo .m3u');
     }
 
-    console.info(`[teles] Loading personalized list from: ${url}`);
+    console.info(`[CNTJ] Loading personalized list from: ${url}`);
     const response = await fetch(url);
     if (!response.ok) {
         throw new Error(`No se pudo cargar la lista personalizada (estado ${response.status})`);
@@ -311,7 +311,7 @@ export function restorePersonalizedLists() {
     const lists = readPersonalizedLists();
     const urls = Object.keys(lists).filter(url => lists[url]?.pinned !== false);
     if (!urls.length) return 0;
-    console.info(`[teles][m3u] Restoring ${urls.length} pinned personalized lists`);
+    console.info(`[CNTJ][m3u] Restoring ${urls.length} pinned personalized lists`);
     let restoredCount = 0;
     urls.forEach(url => {
         try {
@@ -324,7 +324,7 @@ export function restorePersonalizedLists() {
             });
             restoredCount++;
         } catch (error) {
-            console.error(`[teles][m3u] Could not restore personalized list ${url}`, error);
+            console.error(`[CNTJ][m3u] Could not restore personalized list ${url}`, error);
         }
     });
 
