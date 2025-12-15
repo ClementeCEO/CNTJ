@@ -1,6 +1,6 @@
 {
-    "name": "CNTJ - Transmisiones de noticias de Chile y el mundo",
-    "short_name": "CNTJ",
+    "name": "teles - Transmisiones de noticias de Chile y el mundo",
+    "short_name": "teles",
     "description": "PWA Código Abierto para ver/comparar preseleccionadas transmisiones de noticias provenientes de Chile (y el mundo).",
     "lang": "es",
     "categories": [
@@ -16,8 +16,8 @@
     "display": "standalone",
     "orientation": "any",
 
-    "start_url": "/CNTJ/",
-    "id": "/CNTJ/",
+    "start_url": "/teles/",
+    "id": "/teles/",
     
     "icons": [
         {
