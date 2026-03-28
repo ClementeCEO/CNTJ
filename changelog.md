@@ -4,6 +4,41 @@ Todos los cambios notables de este proyecto se documentarán en este archivo.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v0.25]
+
+### Added
+
+- Implementa Shaka Player.
+- Nueva opción en el panel de Personalizar para mostrar logotipos de canales en los botones de selección.
+- Estilos CSS para la visualización de logos en botones (con soporte para fallos de carga).
+
+### Fixed
+
+- Añadido efecto de desenfoque a las áreas de *letterboxing* (espacios vacíos arriba/abajo) de Shaka Player para una integración visual fluida con el fondo del sitio.
+
+## [v0.24]
+
+### Changed
+
+- Optimiza la carga inicial con renderizado diferido y scripts diferidos
+
+### Fixed
+
+- Se elimina el flash of light theme (FOUC)
+
+## [v0.23]
+
+### Changed
+
+- Remueven la mayor parte de enlaces a sitios externos. #25
+- Añade seccion "Características" a README
+
+### Fixed
+
+- Vision unica pierde icono sin señal #22
+- .modal-content tiene gap en navegadores chromium #23 (Gap solo se presentaba en Edge)
+- Lógica botón compartir configuración actual #24
+
 ## [v0.22]
 
 ### Refactored
