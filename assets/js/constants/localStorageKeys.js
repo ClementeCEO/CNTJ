@@ -12,6 +12,8 @@ export const LS_KEY_NAVBAR_VISIBILITY = 'navbar-visibility';
 
 export const LS_KEY_ACTIVE_VIEW_MODE = 'view-mode';
 
+export const LS_KEY_TELES_GRIDSTACK_LAYOUT = 'teles-gridstack-layout';
+
 //overlay canales y opciones
 export const LS_KEY_OVERLAY_VISIBILITY = 'overlay-visibility';
 
@@ -44,6 +46,8 @@ export const LS_KEY_DYNAMIC_URL = 'use-dynamic-url';
 // listas m3u
 export const LS_KEY_PERSONALIZED_LISTS = 'personalized-lists-m3u';
 export const LS_KEY_COMBINE_PERSONALIZED_CHANNELS = 'combine-personalized-channels';
+
+export const LS_KEY_SHOW_CHANNELS_LOGO = 'show-channels-logo';
 
 export const LS_KEY_LOGO_CARD_BACKGROUND_VISIBILITY = 'logo-card-background-visibility';
 

@@ -2,7 +2,7 @@ import { updatePersonalizedList, applySavedPersonalizedList, channelsList, delet
 import { ID_PREFIX_CONTAINERS_CHANNELS, LS_KEY_ACTIVE_VIEW_MODE, LS_KEY_SAVED_CHANNELS_GRID_VIEW } from "../constants/index.js";
 import { tele } from "../main.js";
 import { formatDate } from "../utils/index.js";
-import { adjustChannelButtonClass, createCategoryButtons, createCountryButtons, createChannelButtons, createButtonsForSingleView, showToast, getActiveChannelIds } from "./index.js";
+import { adjustChannelButtonClass, createCategoryButtons, createCountryButtons, createChannelButtons, createButtonsForSingleView, showToast, getActiveChannelIds, clearRenderedContainers, clearCountryRenderedContainers, clearCategoryRenderedContainers } from "./index.js";
 
 
 /**
@@ -25,6 +25,11 @@ export const clearChannelListContainers = () => {
         }
     }
 
+    // Always clear the internal rendering state cache to allow full re-renders
+    clearRenderedContainers();
+    clearCountryRenderedContainers();
+    clearCategoryRenderedContainers();
+
     // If the view mode is 'single-view' reload so the channels-buttons-container 
     // doesn't end up empty after loading/unloading a personalized M3U list
     if (localStorage.getItem(LS_KEY_ACTIVE_VIEW_MODE) === 'single-view') {
@@ -32,6 +37,8 @@ export const clearChannelListContainers = () => {
         if (singleViewContainer) {
             try {
                 createButtonsForSingleView();
+                createCountryButtons('single-view');
+                createCategoryButtons('single-view');
             } catch (error) {
                 console.error('[teles] Error recreating Single View buttons after updating list', error);
             }
@@ -132,7 +139,7 @@ const createPersonalizedListCard = (url, data = {}) => {
             })
         } else {
             showToast({
-            title: 'Lista personalizada',
+                title: 'Lista personalizada',
                 body: 'No fue posible aplicar la lista seleccionada.',
                 type: 'danger',
                 autohide: false,

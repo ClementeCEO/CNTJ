@@ -1,9 +1,8 @@
 import { channelsList, DEFAULT_SOURCE_ORIGIN } from "../channelManager.js";
-import { CSS_CLASS_BUTTON_SECONDARY, COUNTRY_CODES, CATEGORIES_ICONS, ID_PREFIX_CONTAINERS_CHANNELS } from "../constants/index.js";
+import { CSS_CLASS_BUTTON_PRIMARY, CSS_CLASS_BUTTON_SECONDARY, COUNTRY_CODES, CATEGORIES_ICONS, ID_PREFIX_CONTAINERS_CHANNELS, LS_KEY_SHOW_CHANNELS_LOGO } from "../constants/index.js";
 import { singleViewVideoContainer, tele } from "../main.js";
-import { showToast, areAllSignalsEmpty, saveOriginalOrder, replaceActiveChannel } from "./index.js";
+import { showToast, areAllSignalsEmpty, saveOriginalOrder, replaceActiveChannel, getActiveChannelIds } from "./index.js";
 
-import { changeChannelModalEl } from "../canalUI.js";
 
 /** @type {string} SVG placeholder for channels with unknown country */
 const SVG_UNKNOWN_COUNTRY = `
@@ -13,12 +12,6 @@ const SVG_UNKNOWN_COUNTRY = `
     <text x="8" y="11" text-anchor="middle" font-size="8" fill="#757575">?</text>
 </svg>
 `;
-
-/** @type {string[]} Container IDs that are populated during initial load */
-const MAIN_BUTTON_CONTAINER_IDS = [
-    '#modal-canales-channels-buttons-container',
-    '#offcanvas-canales-channels-buttons-container'
-];
 
 /**
  * @typedef {Object} ButtonScenario
@@ -46,7 +39,8 @@ const BUTTON_SCENARIOS = {
     change: {
         description: 'Replaces the active signal from the "Change channel" modal.',
         onSelect: ({ channelId }) => {
-            const previousChannel = changeChannelModalEl?.dataset.channelSource;
+            const modal = document.querySelector('#modal-cambiar-canal');
+            const previousChannel = modal?.dataset.channelSource;
             if (!previousChannel) {
                 console.warn('[teles] There is no channel selected to replace in the "Change channel" modal.');
                 return;
@@ -138,16 +132,17 @@ const groupChannelsByOrigin = () => {
  * Renders channel groups into one or more containers.
  * @param {[string, {id: string, data: Object}[]][]} groups - Grouped channels by origin
  * @param {string[]} selectors - CSS selectors for target containers
+ * @param {string[]} activeChannelIds - List of currently active channel IDs
  * @returns {void}
  */
-const renderButtonsInContainers = (groups, selectors = []) => {
+const renderButtonsInContainers = (groups, selectors = [], activeChannelIds = []) => {
     selectors.forEach(selector => {
         const container = document.querySelector(selector);
         if (!container) return;
 
         container.innerHTML = '';
         const baseId = container.id || selector.replace('#', '') || 'grupo-canales';
-        const fragment = buildChannelsFragment(groups, { baseId });
+        const fragment = buildChannelsFragment(groups, { baseId }, activeChannelIds);
         container.append(fragment);
     });
 };
@@ -157,9 +152,10 @@ const renderButtonsInContainers = (groups, selectors = []) => {
  * @param {[string, {id: string, data: Object}[]][]} groups - Grouped channels
  * @param {Object} [options={}] - Configuration options
  * @param {string} [options.baseId='grupo-canales'] - Base ID for collapse elements
+ * @param {string[]} activeChannelIds - List of currently active channel IDs
  * @returns {DocumentFragment} Fragment ready to be appended
  */
-const buildChannelsFragment = (groups, { baseId = 'grupo-canales' } = {}) => {
+const buildChannelsFragment = (groups, { baseId = 'grupo-canales' } = {}, activeChannelIds = []) => {
     const fragment = document.createDocumentFragment();
 
     groups.forEach(([origin, channels], index) => {
@@ -185,11 +181,11 @@ const buildChannelsFragment = (groups, { baseId = 'grupo-canales' } = {}) => {
         const list = document.createElement('div');
         list.classList.add('modal-body-canales');
         channels.forEach(({ id, data }) => {
-            list.append(createChannelButton(id, data));
+            list.append(createChannelButton(id, data, activeChannelIds));
         });
 
         const collapse = document.createElement('div');
-        collapse.classList.add('mt-1', 'show');
+        collapse.classList.add('mt-1', 'show', 'collapse');
         collapse.id = collapseId;
         collapse.append(list);
 
@@ -216,9 +212,10 @@ const buildChannelsFragment = (groups, { baseId = 'grupo-canales' } = {}) => {
  * Creates an individual button element for a channel.
  * @param {string} channelId - Unique channel identifier
  * @param {Object} channelData - Channel data object
+ * @param {string[]} activeChannelIds - List of currently active channel IDs
  * @returns {HTMLButtonElement} The created button element
  */
-const createChannelButton = (channelId, channelData) => {
+const createChannelButton = (channelId, channelData, activeChannelIds = []) => {
     const { nombre, país } = channelData;
     const category = (channelData.categoría ?? '').toLowerCase();
     const categoryIcon = category && category in CATEGORIES_ICONS
@@ -251,7 +248,10 @@ const createChannelButton = (channelId, channelData) => {
         button.dataset.fuentesCombinadas = sourcesDescription;
     }
 
-    button.classList.add('btn', CSS_CLASS_BUTTON_SECONDARY, 'd-flex', 'justify-content-between', 'align-items-center', 'gap-2', 'text-start', 'rounded-3');
+    button.type = 'button';
+    const isActive = activeChannelIds.includes(channelId);
+    const initialClass = isActive ? CSS_CLASS_BUTTON_PRIMARY : CSS_CLASS_BUTTON_SECONDARY;
+    button.classList.add('btn', 'btn-sm', initialClass, 'd-flex', 'align-items-center', 'gap-2', 'rounded-3', 'w-100', 'text-start', 'btn-canal');
 
     if (areAllSignalsEmpty(channelId)) {
         button.classList.add('d-none');
@@ -261,8 +261,14 @@ const createChannelButton = (channelId, channelData) => {
         ? `<img src="https://flagcdn.com/${país.toLowerCase()}.svg" alt="bandera ${countryName}" title="${countryName}" class="svg-bandera rounded-1">`
         : `<span class="svg-bandera rounded-1 h-100" title="Sin bandera para país [${countryName}]">${SVG_UNKNOWN_COUNTRY}</span>`;
 
+    const showLogos = localStorage.getItem(LS_KEY_SHOW_CHANNELS_LOGO) === 'show';
+    const logoHtml = showLogos && channelData.logo
+        ? `<img src="${channelData.logo}" alt="logo ${nombre}" class="logo-canal-boton rounded-1 me-1" onerror="this.style.display='none'">`
+        : '';
+
     button.innerHTML = `
-        <span class="flex-grow-1">${nombre}</span>
+        ${logoHtml}
+        <span class="flex-grow-1 text-truncate">${nombre}</span>
         ${flagHtml}
         ${categoryIcon}
         ${combinedBadge}`;
@@ -383,20 +389,41 @@ const executeScenario = (scenarioKey, context) => {
     scenario.onSelect(context);
 };
 
+/** @type {Set<string>} Tracks containers that have already been rendered. */
+let renderedContainers = new Set();
+
 /**
- * Renders channel buttons grouped by M3U list origin.
- * This is the main entry point for creating channel buttons on initial load.
+ * Clears the tracking of rendered containers.
+ * Use this when a full re-render of all channel buttons is required.
  * @returns {void}
  */
-export const createChannelButtons = () => {
+export const clearRenderedContainers = () => {
+    renderedContainers.clear();
+};
+
+/**
+ * Renders channel buttons grouped by M3U list origin.
+ * This is the main entry point for creating channel buttons.
+ * Optional param allows rendering only for a specific container (lazy load).
+ * @param {string} [specificPrefix] - Optional prefix to render only one container.
+ * @returns {void}
+ */
+export const createChannelButtons = (specificPrefix) => {
     try {
         const groupedChannels = groupChannelsByOrigin();
-        renderButtonsInContainers(groupedChannels, MAIN_BUTTON_CONTAINER_IDS);
-        assignButtonEvents();
+        const targets = specificPrefix ? [specificPrefix] : ID_PREFIX_CONTAINERS_CHANNELS;
+        const activeChannelIds = getActiveChannelIds();
 
-        for (const PREFIX of ID_PREFIX_CONTAINERS_CHANNELS) {
-            saveOriginalOrder(`${PREFIX}-channels-buttons-container`);
-        }
+        targets.forEach(prefix => {
+            const containerId = `${prefix}-channels-buttons-container`;
+            if (renderedContainers.has(containerId)) return;
+
+            renderButtonsInContainers(groupedChannels, [`#${containerId}`], activeChannelIds);
+            renderedContainers.add(containerId);
+            saveOriginalOrder(containerId);
+        });
+
+        assignButtonEvents();
     } catch (error) {
         console.error(`[teles] Error creating channel buttons. Error: ${error}`);
         showToast({
@@ -408,26 +435,27 @@ export const createChannelButtons = () => {
             showReloadOnError: true
         });
 
-        for (const PREFIX of ID_PREFIX_CONTAINERS_CHANNELS) {
+        const targets = specificPrefix ? [specificPrefix] : ID_PREFIX_CONTAINERS_CHANNELS;
+        for (const PREFIX of targets) {
             document.querySelector(`#${PREFIX}-channels-buttons-container`)
                 ?.insertAdjacentElement('afterend', insertarDivError(error, 'Ha ocurrido un error durante la creación de botones para los canales'));
         }
     }
 };
 
+const insertarDivError = (error, message) => {
+    const div = document.createElement('div');
+    div.className = 'alert alert-danger';
+    div.textContent = `${message}: ${error}`;
+    return div;
+}
+
 /**
  * Renders channel buttons in the "Change channel" modal container on demand.
  * @returns {void}
  */
 export const createButtonsForChangeChannelModal = () => {
-    try {
-        const groupedChannels = groupChannelsByOrigin();
-        renderButtonsInContainers(groupedChannels, ['#modal-cambiar-canal-channels-buttons-container']);
-        assignButtonEvents();
-        saveOriginalOrder('modal-cambiar-canal-channels-buttons-container');
-    } catch (error) {
-        console.error('[teles] Error creating buttons for "Change channel" modal:', error);
-    }
+    createChannelButtons('modal-cambiar-canal');
 };
 
 /**
@@ -435,12 +463,5 @@ export const createButtonsForChangeChannelModal = () => {
  * @returns {void}
  */
 export const createButtonsForSingleView = () => {
-    try {
-        const groupedChannels = groupChannelsByOrigin();
-        renderButtonsInContainers(groupedChannels, ['#single-view-channels-buttons-container']);
-        assignButtonEvents();
-        saveOriginalOrder('single-view-channels-buttons-container');
-    } catch (error) {
-        console.error('[teles] Error creating buttons for Single View:', error);
-    }
+    createChannelButtons('single-view');
 };
