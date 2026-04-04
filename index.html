@@ -1,16 +1,16 @@
 <!doctype html>
 <html lang="es">
 <!--     
-    CTNJ v0.25
-    by ClementeCEO 
-    https://github.com/ClementeCEO/CNTJ
+    teles v0.26
+    by Alplox 
+    https://github.com/Alplox/teles
 -->
 
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <base target="_blank">
-    <title>CNTJ - Noticias de Chile (y el mundo)</title>
+    <title>Teles - Noticias de Chile (y el mundo)</title>
     <!-- flash of light theme  -->
     <script id="theme-loader">
         (function () {
@@ -35,12 +35,12 @@
     <script src="https://cdn.jsdelivr.net/npm/@oplayer/ui@latest/dist/index.min.js" defer></script>
     <!-- Clappr -->
     <script src="https://cdn.jsdelivr.net/npm/clappr@latest/dist/clappr.min.js" defer></script>
-    <!-- CTNJ -->
+    <!-- teles -->
     <link href="assets/css/style.css" rel="stylesheet">
     <!-- Open Graph -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="CTNJ">
-    <meta property="og:url" content="https://ClementeCEO.github.io/CTNJ/">
+    <meta property="og:title" content="teles">
+    <meta property="og:url" content="https://alplox.github.io/teles/">
     <meta property="og:description"
         content="PWA Código Abierto para ver/comparar preseleccionadas transmisiones de noticias provenientes de Chile (y el mundo).">
     <meta property="og:image" content="assets/img/previews/shots_teles_v0-18_dark_canales.webp">
@@ -48,8 +48,8 @@
     <meta name="twitter:card"
         content="PWA Código Abierto para ver/comparar preseleccionadas transmisiones de noticias provenientes de Chile (y el mundo).">
     <meta property="twitter:domain" content="alplox.github.io">
-    <meta property="twitter:url" content="https://ClementeCEO.github.io/JCTN/">
-    <meta name="twitter:title" content="JCTN">
+    <meta property="twitter:url" content="https://alplox.github.io/teles/">
+    <meta name="twitter:title" content="teles">
     <meta name="twitter:description"
         content="PWA Código Abierto para ver/comparar preseleccionadas transmisiones de noticias provenientes de Chile (y el mundo).">
     <meta name="twitter:image" content="assets/img/previews/shots_teles_v0-18_dark_canales.webp">
@@ -77,6 +77,9 @@
             Santiago_z179: {}
         });
     </script>
+    <!-- Gridstack -->
+    <link href="https://cdn.jsdelivr.net/npm/gridstack@12.4.2/dist/gridstack.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/gridstack@12.4.2/dist/gridstack-all.js" defer></script>
     <!-- Sortable -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js" defer></script>
     <!-- pwa-install -->
@@ -112,16 +115,15 @@
                 <div
                     class="tarjeta-logo-background bg-transparent bg-blur px-5 pb-4 pt-5 d-flex flex-column justify-content-center align-items-center">
                     <div class="position-relative bg-light-subtle p-3 rounded-4 shadow" tabindex="-1">
-                        <img src="assets/favicon/android-chrome-512x512.png" alt="logo CTNJ">
+                        <img src="assets/favicon/android-chrome-512x512.png" alt="logo teles">
                         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill">
-                            <i class="badge bg-secondary">v0.25</i>
+                            <i class="badge bg-secondary">v0.26</i>
                         </span>
                     </div>
-                    <p class="display-1 gradient-text">TUMBAJULCA</p>
+                    <p class="display-1 gradient-text">teles</p>
 
                     <!-- Controles de audio para música ambiente -->
-                    <div id="audio-controls"
-                        class="z-3 d-flex flex-column gap-2 align-items-center bg-info-subtle p-2 rounded-4">
+                    <div id="audio-controls" class="z-3 d-flex flex-column gap-2 align-items-center p-2 rounded-4">
                         <button id="ambient-music-toggle"
                             class="btn btn-sm rounded-pill d-flex align-items-center gap-2"
                             title="Reproducir música ambiente">
@@ -176,7 +178,7 @@
     <!-- Navbar -->
     <nav class='navbar navbar-expand-lg bg-dark-subtle shadow-sm p-1' id="navbar">
         <div class="container-fluid">
-            <a href="./" target="_self" class="gradient-text me-2 fs-4 d-none">TUMBAJULCA</a>
+            <a href="./" target="_self" class="gradient-text me-2 fs-4 d-none">teles</a>
             <div class="btn-group" role="group" aria-label="grupo de botones para abrir selector canales">
                 <button type="button" class="btn btn-sm btn-indigo rounded-start-pill" data-bs-toggle="offcanvas"
                     data-bs-target="#offcanvas-canales" aria-controls="offcanvas-canales"><i class="bi bi-chevron-right"
@@ -187,7 +189,7 @@
                     <i class="bi bi-collection-play"></i> Canales
                 </button>
             </div>
-            <span class="reloj px-4" title="Hora Santiago, Chile" data-bs-toggle="tooltip"
+            <span class="reloj px-2 px-md-4" title="Hora Santiago, Chile" data-bs-toggle="tooltip"
                 data-bs-title="Hora Santiago, Chile">
                 <time id="Santiago_z179" tabindex="-1">
                     <span onclick="location='http://time.is/'" title="http://time.is/" tabindex="-1"></span>
@@ -269,7 +271,11 @@
 
     <!-- Grid canales -->
     <main class='vh-100'>
-        <!-- version vision cuadricula -->
+        <!-- version vision libre (gridstack) -->
+        <div class="grid-stack grid-stack-background d-none h-100" id="container-vision-libre">
+        </div>
+
+        <!-- version vision cuadricula (bootstrap grid) -->
         <div class="row g-0 h-100" id="container-vision-cuadricula">
         </div>
 
@@ -843,7 +849,7 @@
                 </div>
                 <div class="modal-body bg-body scrollbar-thin-gray">
                     <ul class="ps-3">
-                        <li tabindex="0"><span class="text-flicker">"CNTJ"</span> es un proyecto de código abierto
+                        <li tabindex="0"><span class="text-flicker">"teles"</span> es un proyecto de código abierto
                             gratuito que permite gestionar
                             canales
                             de televisión
@@ -853,7 +859,7 @@
                             proyecto
                             son procesados
                             desde diferentes sitios públicos con libre distribución/acceso.</li>
-                        <li tabindex="0"><span class="text-flicker">"CTNJ"</span> no posee ningún tipo de monetización,
+                        <li tabindex="0"><span class="text-flicker">"teles"</span> no posee ningún tipo de monetización,
                             en consecuencia, no se lucra
                             de
                             ninguna forma o
@@ -866,7 +872,7 @@
                             por
                             parte de cada
                             canal.</li>
-                        <li tabindex="0"><span class="text-flicker">"CTNJ"</span> no ofrece canales de pago bajo
+                        <li tabindex="0"><span class="text-flicker">"teles"</span> no ofrece canales de pago bajo
                             ninguna modalidad.</li>
                         <li tabindex="0">En este proyecto no se almacena ninguna transmisión.</li>
                         <li tabindex="0">El proyecto tanto como sus mantenedores no asumen responsabilidad alguna
@@ -984,36 +990,24 @@
                     </div>
                 </li>
                 <li class="w-100">
-                    <div class="py-2 px-3 bg-dark-subtle rounded-pill border border-light-subtle shadow">
+                    <div class="py-2 px-3 bg-dark-subtle rounded-4 border border-light-subtle shadow">
+                        <p class="mb-1"><i class="bi bi-display"></i> Diseño de visualización</p>
                         <div class="d-flex gap-2 justify-content-evenly align-items-center">
                             <button type="button" id="boton-activar-diseño-vision-grid"
                                 class="focus-outline-blue btn btn-sm btn-indigo rounded-start-5 shadow-sm d-flex gap-1 border-0 w-100 h-100 justify-content-center align-items-center"
-                                tabindex="0">
-                                <span class="w-100 h-100"><i class="bi bi-grid-3x2"></i> Visión cuadrícula</span>
+                                tabindex="0" title="Visión cuadrícula (Sortable)">
+                                <span class="w-100 h-100"><i class="bi bi-grid-3x2"></i> Cuadrícula</span>
                             </button>
                             <button type="button" id="boton-activar-diseño-single-view"
-                                class="focus-outline-blue btn btn-sm btn-light-subtle rounded-end-5 shadow-sm d-flex gap-1 border-0 w-100 h-100 justify-content-center align-items-center"
-                                tabindex="0">
-                                <span class="w-100 h-100"><i class="bi bi-layout-sidebar"></i> Visión única</span>
+                                class="focus-outline-blue btn btn-sm btn-light-subtle rounded-0 shadow-sm d-flex gap-1 border-0 w-100 h-100 justify-content-center align-items-center"
+                                tabindex="0" title="Visión única">
+                                <span class="w-100 h-100"><i class="bi bi-layout-sidebar"></i> Única</span>
                             </button>
-                        </div>
-                    </div>
-                </li>
-                <li class="w-100">
-                    <div class="w-100 py-2 px-3 bg-dark-subtle rounded-pill border border-light-subtle shadow mt-2">
-                        <div class="form-check form-switch d-flex align-items-center gap-2"
-                            title="mostrar logos en botones de canales">
-                            <input class="form-check-input" type="checkbox" role="switch"
-                                id="checkbox-mostrar-logos-botones">
-                            <label class="form-check-label w-100 d-flex justify-content-start align-items-center gap-1"
-                                for="checkbox-mostrar-logos-botones">
-                                Mostrar logos canales
-                                <div class="fs-smaller text-secondary">
-                                    <span id="span-valor-mostrar-logos-botones"></span>
-                                </div>
-                                <i class="bi bi-image ms-auto bg-light-subtle px-2 py-1 rounded-circle"
-                                    id="icono-mostrar-logos-botones"></i>
-                            </label>
+                            <button type="button" id="boton-activar-diseño-free-view"
+                                class="focus-outline-blue btn btn-sm btn-light-subtle rounded-end-5 shadow-sm d-flex gap-1 border-0 w-100 h-100 justify-content-center align-items-center"
+                                tabindex="0" title="Visión libre (Gridstack)">
+                                <span class="w-100 h-100"><i class="bi bi-aspect-ratio"></i> Libre</span>
+                            </button>
                         </div>
                     </div>
                 </li>
@@ -1122,6 +1116,24 @@
                                 </div>
                                 <i class="bi bi-sun bg-light-subtle px-2 py-1 rounded-circle ms-auto"
                                     id="icon-bootstrap-current-theme"></i>
+                            </label>
+                        </div>
+                    </div>
+                </li>
+                <li class="w-100">
+                    <div class="w-100 py-2 px-3 bg-dark-subtle rounded-pill border border-light-subtle shadow">
+                        <div class="form-check form-switch d-flex align-items-center gap-2"
+                            title="mostrar logos en botones de canales">
+                            <input class="form-check-input" type="checkbox" role="switch"
+                                id="checkbox-mostrar-logos-botones">
+                            <label class="form-check-label w-100 d-flex justify-content-start align-items-center gap-1"
+                                for="checkbox-mostrar-logos-botones">
+                                Mostrar logos canales
+                                <div class="fs-smaller text-secondary">
+                                    <span id="span-valor-mostrar-logos-botones"></span>
+                                </div>
+                                <i class="bi bi-image ms-auto bg-light-subtle px-2 py-1 rounded-circle"
+                                    id="icono-mostrar-logos-botones"></i>
                             </label>
                         </div>
                     </div>
@@ -1267,56 +1279,56 @@
                         <div class="d-none justify-content-evenly flex-wrap gap-1" id="contenedor-botones-compartir">
                             <!-- Boton Facebook -->
                             <a class="btn btn-light-subtle btn-lg" role="button"
-                                href="https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2FClementeCEO.github.io%2Fteles%2F&quote=CTNJ"
+                                href="https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Falplox.github.io%2Fteles%2F&quote=teles"
                                 rel="nofollow noreferrer" title="Facebook" data-bs-toggle="tooltip"
                                 data-bs-title="Facebook">
                                 <i class="bi bi-facebook"></i>
                             </a>
                             <!-- Boton X/Twitter -->
                             <a class="btn btn-light-subtle btn-lg" role="button"
-                                href="https://twitter.com/intent/tweet/?text=PWA%20C%C3%B3digo%20Abierto%20para%20ver%2Fcomparar%20preseleccionadas%20transmisiones%20de%20canales%20de%20noticias%20provenientes%20de%20Chile%20(y%20el%20mundo).&amp;url=https%3A%2F%2FClementeCEO.github.io%2FCTNJ%2F"
+                                href="https://twitter.com/intent/tweet/?text=PWA%20C%C3%B3digo%20Abierto%20para%20ver%2Fcomparar%20preseleccionadas%20transmisiones%20de%20canales%20de%20noticias%20provenientes%20de%20Chile%20(y%20el%20mundo).&amp;url=https%3A%2F%2Falplox.github.io%2Fteles%2F"
                                 rel="nofollow noreferrer" title="X/Twitter" data-bs-toggle="tooltip"
                                 data-bs-title="X/Twitter">
                                 <i class="bi bi-twitter-x"></i>
                             </a>
                             <!-- Boton WhatsApp -->
                             <a class="btn btn-light-subtle btn-lg" role="button"
-                                href="https://web.whatsapp.com/send?text=PWA%20C%C3%B3digo%20Abierto%20para%20ver%2Fcomparar%20preseleccionadas%20transmisiones%20de%20canales%20de%20noticias%20provenientes%20de%20Chile%20(y%20el%20mundo).%20https%3A%2F%2FClementeCEO.github.io%2FCTNJ%2F"
+                                href="https://web.whatsapp.com/send?text=PWA%20C%C3%B3digo%20Abierto%20para%20ver%2Fcomparar%20preseleccionadas%20transmisiones%20de%20canales%20de%20noticias%20provenientes%20de%20Chile%20(y%20el%20mundo).%20https%3A%2F%2Falplox.github.io%2Fteles%2F"
                                 rel="nofollow noreferrer" title="WhatsApp" data-bs-toggle="tooltip"
                                 data-bs-title="WhatsApp">
                                 <i class="bi bi-whatsapp"></i>
                             </a>
                             <!-- Boton Telegram -->
                             <a class="btn btn-light-subtle btn-lg" role="button"
-                                href="https://telegram.me/share/url?text=PWA%20C%C3%B3digo%20Abierto%20para%20ver%2Fcomparar%20preseleccionadas%20transmisiones%20de%20canales%20de%20noticias%20provenientes%20de%20Chile%20(y%20el%20mundo).&amp;url=https%3A%2F%2FClementeCEO.github.io%2FCTNJ%2F"
+                                href="https://telegram.me/share/url?text=PWA%20C%C3%B3digo%20Abierto%20para%20ver%2Fcomparar%20preseleccionadas%20transmisiones%20de%20canales%20de%20noticias%20provenientes%20de%20Chile%20(y%20el%20mundo).&amp;url=https%3A%2F%2Falplox.github.io%2Fteles%2F"
                                 rel="nofollow noreferrer" title="Telegram" data-bs-toggle="tooltip"
                                 data-bs-title="Telegram">
                                 <i class="bi bi-telegram"></i>
                             </a>
                             <!-- Boton Pinterest -->
                             <a class="btn btn-light-subtle btn-lg" role="button"
-                                href="https://pinterest.com/pin/create/button/?url=https%3A%2F%2Falplox.github.io%2Fteles%2F&amp;media=https%3A%2F%2FClementeCEO.github.io%2FCTNJ%2F&amp;description=PWA%20C%C3%B3digo%20Abierto%20para%20ver%2Fcomparar%20preseleccionadas%20transmisiones%20de%20canales%20de%20noticias%20provenientes%20de%20Chile%20(y%20el%20mundo)."
+                                href="https://pinterest.com/pin/create/button/?url=https%3A%2F%2Falplox.github.io%2Fteles%2F&amp;media=https%3A%2F%2Falplox.github.io%2Fteles%2F&amp;description=PWA%20C%C3%B3digo%20Abierto%20para%20ver%2Fcomparar%20preseleccionadas%20transmisiones%20de%20canales%20de%20noticias%20provenientes%20de%20Chile%20(y%20el%20mundo)."
                                 rel="nofollow noreferrer" title="Pinterest" data-bs-toggle="tooltip"
                                 data-bs-title="Pinterest">
                                 <i class="bi bi-pinterest"></i>
                             </a>
                             <!-- Boton LinkedIn -->
                             <a class="btn btn-light-subtle btn-lg" role="button"
-                                href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3A%2F%2FClementeCEO.github.io%2FCTNJ%2F&amp;title=PWA%20C%C3%B3digo%20Abierto%20para%20ver%2Fcomparar%20preseleccionadas%20transmisiones%20de%20canales%20de%20noticias%20provenientes%20de%20Chile%20(y%20el%20mundo).&amp;summary=PWA%20C%C3%B3digo%20Abierto%20para%20ver%2Fcomparar%20preseleccionadas%20transmisiones%20de%20canales%20de%20noticias%20provenientes%20de%20Chile%20(y%20el%20mundo).&amp;source=https%3A%2F%2FClementeCEO.github.io%2FCTNJ%2F"
+                                href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3A%2F%2Falplox.github.io%2Fteles%2F&amp;title=PWA%20C%C3%B3digo%20Abierto%20para%20ver%2Fcomparar%20preseleccionadas%20transmisiones%20de%20canales%20de%20noticias%20provenientes%20de%20Chile%20(y%20el%20mundo).&amp;summary=PWA%20C%C3%B3digo%20Abierto%20para%20ver%2Fcomparar%20preseleccionadas%20transmisiones%20de%20canales%20de%20noticias%20provenientes%20de%20Chile%20(y%20el%20mundo).&amp;source=https%3A%2F%2Falplox.github.io%2Fteles%2F"
                                 rel="nofollow noreferrer" title="LinkedIn" data-bs-toggle="tooltip"
                                 data-bs-title="LinkedIn">
                                 <i class="bi bi-linkedin"></i>
                             </a>
                             <!-- Boton Reddit -->
                             <a class="btn btn-light-subtle btn-lg" role="button"
-                                href="https://reddit.com/submit/?url=https%3A%2F%2FClementeCEO.github.io%2FCTNJ%2F&amp;resubmit=true&amp;title=PWA%20C%C3%B3digo%20Abierto%20para%20ver%2Fcomparar%20preseleccionadas%20transmisiones%20de%20canales%20de%20noticias%20provenientes%20de%20Chile%20(y%20el%20mundo)."
+                                href="https://reddit.com/submit/?url=https%3A%2F%2Falplox.github.io%2Fteles%2F&amp;resubmit=true&amp;title=PWA%20C%C3%B3digo%20Abierto%20para%20ver%2Fcomparar%20preseleccionadas%20transmisiones%20de%20canales%20de%20noticias%20provenientes%20de%20Chile%20(y%20el%20mundo)."
                                 rel="nofollow noreferrer" title="Reddit" data-bs-toggle="tooltip"
                                 data-bs-title="Reddit">
                                 <i class="bi bi-reddit"></i>
                             </a>
                             <!-- Boton Correo -->
                             <a class="btn btn-light-subtle btn-lg" role="button"
-                                href="mailto:?subject=PWA%20C%C3%B3digo%20Abierto%20para%20ver%2Fcomparar%20preseleccionadas%20transmisiones%20de%20canales%20de%20noticias%20provenientes%20de%20Chile%20(y%20el%20mundo).&amp;body=https%3A%2F%2FClementeCEO.github.io%2FCTNJ%2F"
+                                href="mailto:?subject=PWA%20C%C3%B3digo%20Abierto%20para%20ver%2Fcomparar%20preseleccionadas%20transmisiones%20de%20canales%20de%20noticias%20provenientes%20de%20Chile%20(y%20el%20mundo).&amp;body=https%3A%2F%2Falplox.github.io%2Fteles%2F"
                                 target="_self" rel="nofollow noreferrer noopener" title="Correo"
                                 data-bs-toggle="tooltip" data-bs-title="Correo">
                                 <i class="bi bi-envelope-at"></i>
