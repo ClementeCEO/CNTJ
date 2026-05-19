@@ -1,6 +1,6 @@
 /* 
   main v0.27
-  by Alplox 
+  by CNTJ 
   https://github.com/ClementeCEO/CNTJ
 */
 
