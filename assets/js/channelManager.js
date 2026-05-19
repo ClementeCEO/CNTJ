@@ -3,13 +3,13 @@ import { LS_KEY_CHANNELS_BACKUP, LS_KEY_CHANNELS_BACKUP_DATE, LS_KEY_COMBINE_PER
 import { m3uToJson, validateM3UContent } from "./helpers/index.js";
 
 // Backup and channel fetch management
-export const DEFAULT_CHANNELS_ARRAY = ['24-horas', 'meganoticias', 't13'];
-export const EXTRA_DEFAULT_CHANNELS_ARRAY = ['chv-noticias', 'cnn-cl', 'lofi-girl'];
+export const DEFAULT_CHANNELS_ARRAY = ['BBC-PERSIAN-Navez', 'FOX-NEW', 't13'];
+export const EXTRA_DEFAULT_CHANNELS_ARRAY = ['MGTV-NAVEZ', 'latina-noticias', 'YAHOO-BUSSINES-NAVEZ'];
 
 export let channelsList;
 
 export const BACKUP_EXPIRATION_HOURS = 24;
-export const DEFAULT_SOURCE_ORIGIN = 'Canales predeterminados (github.com/Alplox/json-teles)';
+export const DEFAULT_SOURCE_ORIGIN = 'Canales predeterminados (github.com/ClementeCEO/json-CNTJ)';
 
 /**
  * Checks if the stored backup is valid based on expiration time.
@@ -56,7 +56,7 @@ let initialChannelsListBackup = null;
 export async function fetchLoadChannels() {
     try {
         if (isBackupValid()) {
-            console.info('[teles] Loading channels from localStorage backup');
+            console.info('[CNTJ] Loading channels from localStorage backup');
             channelsList = readChannelBackup();
             if (channelsList) {
                 // Save in-memory copy for fast restoration
@@ -64,7 +64,7 @@ export async function fetchLoadChannels() {
                 return;
             }
         }
-        console.info('[teles] Attempting to load main channel file');
+        console.info('[CNTJ] Attempting to load main channel file');
         const response = await fetch(URL_JSON_MAIN_CHANNELS);
         try {
             channelsList = await response.json();
@@ -74,10 +74,10 @@ export async function fetchLoadChannels() {
             // Save in-memory copy
             initialChannelsListBackup = JSON.parse(JSON.stringify(channelsList));
         } catch (parseError) {
-            console.error('[teles] Error parsing main JSON', parseError);
+            console.error('[CNTJ] Error parsing main JSON', parseError);
             // Try loading backup if exists
             if (isBackupValid()) {
-                console.warn('[teles] Using channel list backup from localStorage due to parsing error');
+                console.warn('[CNTJ] Using channel list backup from localStorage due to parsing error');
                 channelsList = readChannelBackup();
                 if (channelsList) {
                     initialChannelsListBackup = JSON.parse(JSON.stringify(channelsList));
