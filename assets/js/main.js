@@ -1,7 +1,7 @@
 /* 
-  main v0.27
-  by CNTJ 
-  https://github.com/ClementeCEO/CNTJ
+  main v0.28
+  by Alplox 
+  https://github.com/Alplox/teles
 */
 
 // MARK: import
