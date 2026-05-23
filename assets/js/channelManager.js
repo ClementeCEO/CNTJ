@@ -4,7 +4,7 @@ import { m3uToJson, validateM3UContent } from "./helpers/index.js";
 
 // Backup and channel fetch management
 export const DEFAULT_CHANNELS_ARRAY = ['BBC-PERSIAN-Navez', 'FOX-NEW', 't13'];
-export const EXTRA_DEFAULT_CHANNELS_ARRAY = ['GTV-NAVEZ', 'latina-noticias', 'YAHOO-BUSSINES-NAVEZ'];
+export const EXTRA_DEFAULT_CHANNELS_ARRAY = ['MGTV-NAVEZ', 'latina-noticias', 'YAHOO-BUSSINES-NAVEZ'];
 
 export let channelsList;
 
