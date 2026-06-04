@@ -1,5 +1,8 @@
 
 
+export const LS_KEY_CHANNELS_BACKUP = 'backup-json-channels';
+export const LS_KEY_CHANNELS_BACKUP_DATE = 'backup-json-channels-date';
+
 export const LS_KEY_SAVED_CHANNELS_GRID_VIEW = 'active-channels'
 
 ///////////////////// Personalizaciones

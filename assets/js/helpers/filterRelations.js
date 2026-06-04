@@ -3,16 +3,9 @@ import { channelsList } from "../channelManager.js";
 const UNKNOWN_COUNTRY_VALUE = "Desconocido";
 const UNDEFINED_CATEGORY_VALUE = "undefined";
 
-/** @type {number} Generation counter — incremented when channelsList changes shape */
-let _generation = -1;
-/** @type {Object} Snapshot of channelsList used to detect changes */
-let _channelsListRef = null;
-/** @type {ReturnType<typeof buildRelations>|null} Cached relation maps */
-let _cachedRelations = null;
-
 /**
  * Builds country-category relationships at runtime to avoid initialization cycles.
- * Caches the result and invalidates only when channelsList changes.
+ * Always uses the most recent state of `channelsList`.
  * @returns {{
  *   categoriesByCountryMap: Map<string, Set<string>>,
  *   countriesByCategoryMap: Map<string, Set<string>>,
@@ -21,27 +14,16 @@ let _cachedRelations = null;
  * }}
  */
 function buildRelations() {
-    const currentKeys = channelsList ? Object.keys(channelsList) : [];
-    const currentLength = currentKeys.length;
-
-    // Invalidate cache if channelsList reference changed or length differs
-    if (_cachedRelations && _channelsListRef === channelsList && _generation === currentLength) {
-        return _cachedRelations;
-    }
-
-    _channelsListRef = channelsList;
-    _generation = currentLength;
-
     const categoriesByCountryMap = new Map();
     const countriesByCategoryMap = new Map();
     const channels = channelsList ? Object.values(channelsList) : [];
 
     for (const channel of channels) {
-        const countryCode = channel?.country?.trim()
-            ? channel.country.toLowerCase()
+        const countryCode = channel?.país?.trim()
+            ? channel.país.toLowerCase()
             : UNKNOWN_COUNTRY_VALUE;
-        const category = channel?.category?.trim()
-            ? channel.category.toLowerCase()
+        const category = channel?.categoría?.trim()
+            ? channel.categoría.toLowerCase()
             : UNDEFINED_CATEGORY_VALUE;
 
         if (!categoriesByCountryMap.has(countryCode)) {
@@ -55,14 +37,12 @@ function buildRelations() {
         countriesByCategoryMap.get(category).add(countryCode);
     }
 
-    _cachedRelations = {
+    return {
         categoriesByCountryMap,
         countriesByCategoryMap,
         allCategories: new Set(countriesByCategoryMap.keys()),
         allCountries: new Set(categoriesByCountryMap.keys())
     };
-
-    return _cachedRelations;
 }
 
 /**

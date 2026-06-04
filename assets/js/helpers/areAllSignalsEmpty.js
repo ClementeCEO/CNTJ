@@ -6,16 +6,15 @@ import { channelsList } from "../channelManager.js";
  * @returns {boolean} `true` if all signals are empty or undefined, `false` otherwise.
  */
 export const areAllSignalsEmpty = (channelId) => {
-    const channel = channelsList?.[channelId];
-    if (!channel) return true;
+    const signals = channelsList?.[channelId]?.señales;
+    if (!signals) return true;
 
-    const signals = channel.signals ?? [];
-    const hasSignals = signals.length > 0 && signals.some(s => s.url && s.url.trim() !== '');
-    const hasYoutube = !!channel.youtube;
-    const hasYoutubeEmbed = !!(channel.last_youtube_livestreams?.[0]);
-    const hasTwitch = !!channel.twitch;
-
-    const allEmpty = !hasSignals && !hasYoutube && !hasYoutubeEmbed && !hasTwitch;
+    const allEmpty = Object.values(signals).every(signal => {
+        if (signal === null || signal === undefined) return true;
+        if (Array.isArray(signal)) return signal.length === 0;
+        if (typeof signal === 'string') return signal.trim() === '';
+        return true;
+    });
 
     if (allEmpty) {
         console.error(`[teles] ${channelId} has all its signals empty`);

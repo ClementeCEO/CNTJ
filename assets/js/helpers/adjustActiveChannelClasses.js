@@ -7,16 +7,6 @@ import {
     gridViewContainer
 } from "../main.js";
 
-/** @type {{ viewMode: string|null, colNumber: string|null, fullHeight: string|null }} Cached localStorage reads */
-let cachedSettings = { viewMode: null, colNumber: null, fullHeight: null };
-
-/**
- * Invalidates cached settings. Call after any localStorage write for these keys.
- */
-export const invalidateCachedColumnSettings = () => {
-    cachedSettings = { viewMode: null, colNumber: null, fullHeight: null };
-};
-
 /**
  * Assigns column classes to a transmission element, removing previous layout classes.
  * @param {HTMLElement} transmissionElement - The channel container element to modify.
@@ -40,22 +30,15 @@ export const adjustBootstrapColumnClasses = () => {
         if (typeof isMobile === 'undefined' || !gridViewContainer) return;
 
         // Skip entirely for Free View - Gridstack owns layout there
-        if (cachedSettings.viewMode === null) {
-            cachedSettings.viewMode = localStorage.getItem(LS_KEY_ACTIVE_VIEW_MODE) || 'grid-view';
-        }
-        if (cachedSettings.viewMode === 'free-view') return;
+        const viewMode = localStorage.getItem(LS_KEY_ACTIVE_VIEW_MODE) || 'grid-view';
+        if (viewMode === 'free-view') return;
 
         const activeTransmissions = gridViewContainer.querySelectorAll('div[data-canal]');
+        const storedColNumber = JSON.parse(localStorage.getItem(LS_KEY_BOOTSTRAP_COL_NUMBER));
 
-        if (cachedSettings.colNumber === null) {
-            cachedSettings.colNumber = JSON.parse(localStorage.getItem(LS_KEY_BOOTSTRAP_COL_NUMBER));
-        }
-        if (!cachedSettings.colNumber || isNaN(Number(cachedSettings.colNumber))) return;
+        if (!storedColNumber || isNaN(Number(storedColNumber))) return;
 
-        if (cachedSettings.fullHeight === null) {
-            cachedSettings.fullHeight = JSON.parse(localStorage.getItem(LS_KEY_LAYOUT_FULL_HEIGHT_ENABLED));
-        }
-        const isFullHeightMode = cachedSettings.fullHeight;
+        const isFullHeightMode = JSON.parse(localStorage.getItem(LS_KEY_LAYOUT_FULL_HEIGHT_ENABLED));
         const fullHeightClasses = isFullHeightMode ? ['vh-100', 'overflow-hidden'] : [];
 
         if (isFullHeightMode) {
@@ -70,7 +53,7 @@ export const adjustBootstrapColumnClasses = () => {
             // Desktop logic
             if (activeTransmissions.length < channelsPerRow && !isFullHeightMode) {
                 for (const transmission of activeTransmissions) {
-                    assignColumnClasses(transmission, [`col-${cachedSettings.colNumber}`]);
+                    assignColumnClasses(transmission, [`col-${storedColNumber}`]);
                 }
             } else if (activeTransmissions.length < channelsPerRow) {
                 for (const transmission of activeTransmissions) {
@@ -78,8 +61,8 @@ export const adjustBootstrapColumnClasses = () => {
                 }
             } else {
                 for (const transmission of activeTransmissions) {
-                    assignColumnClasses(transmission, [`col-${cachedSettings.colNumber}`]);
-                    if (cachedSettings.colNumber === 12 || cachedSettings.colNumber === 6) {
+                    assignColumnClasses(transmission, [`col-${storedColNumber}`]);
+                    if (storedColNumber === 12 || storedColNumber === 6) {
                         transmission.classList.add(...fullHeightClasses);
                     }
                 }
@@ -92,8 +75,8 @@ export const adjustBootstrapColumnClasses = () => {
                 }
             } else {
                 for (const transmission of activeTransmissions) {
-                    assignColumnClasses(transmission, [`col-${cachedSettings.colNumber}`]);
-                    if (cachedSettings.colNumber === 12 || cachedSettings.colNumber === 6) {
+                    assignColumnClasses(transmission, [`col-${storedColNumber}`]);
+                    if (storedColNumber === 12 || storedColNumber === 6) {
                         transmission.classList.add(...fullHeightClasses);
                     }
                 }
@@ -106,7 +89,7 @@ export const adjustBootstrapColumnClasses = () => {
                 }
             } else {
                 for (const transmission of activeTransmissions) {
-                    assignColumnClasses(transmission, [`col-${cachedSettings.colNumber}`]);
+                    assignColumnClasses(transmission, [`col-${storedColNumber}`]);
                 }
             }
         }
@@ -141,6 +124,5 @@ export const updateGridColumnConfiguration = (columnValue) => {
     }
 
     localStorage.setItem(LS_KEY_BOOTSTRAP_COL_NUMBER, columnValue);
-    invalidateCachedColumnSettings();
     adjustBootstrapColumnClasses();
 };

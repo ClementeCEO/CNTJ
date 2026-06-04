@@ -9,19 +9,13 @@ import {
 } from '../botones.js'
 import { AMBIENT_MUSIC, LS_KEY_ACTIVE_VIEW_MODE, LS_KEY_LOGO_CARD_BACKGROUND_VISIBILITY } from '../constants/index.js';
 import { musicIcon } from '../main.js';
-import { getFavoriteChannels } from './index.js';
+import { getActiveChannelIds, getFavoriteChannels } from './index.js';
 
 /**
  * Adjust the visibility of the buttons to remove all active channels.
- * Uses the DOM as source of truth for active channels because tele.remove()
- * updates the DOM synchronously, while saveChannelsToLocalStorage() is debounced.
- * Relying on getActiveChannelIds() (which reads localStorage) would return stale
- * data during "remove all" batch operations, keeping the wrong buttons visible.
  */
 export const adjustVisibilityButtonsRemoveAllActiveChannels = () => {
-    // DOM is always up-to-date; localStorage may lag behind due to debouncing.
-    const domActiveChannels = document.querySelectorAll('div[data-canal]').length;
-    const hasActiveChannels = domActiveChannels > 0;
+    const hasActiveChannels = getActiveChannelIds().length > 0;
     const hasFavorites = getFavoriteChannels().length > 0;
 
     // Buttons remove all active channels

@@ -1,7 +1,6 @@
-export const initializeBootstrapTooltips = (container) => {
+export const initializeBootstrapTooltips = () => {
     if (typeof window.bootstrap === 'undefined' || !window.bootstrap.Tooltip) return;
-    const root = container || document;
-    const existingTooltips = root.querySelectorAll('[data-bs-toggle="tooltip"]');
+    const existingTooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
     existingTooltips.forEach(tooltip => {
         if (!tooltip) return;
         const instance = bootstrap.Tooltip.getInstance(tooltip);
@@ -9,10 +8,9 @@ export const initializeBootstrapTooltips = (container) => {
     });
 }
 
-export const disposeBootstrapTooltips = (container) => {
+export const disposeBootstrapTooltips = () => {
     if (typeof window.bootstrap === 'undefined' || !window.bootstrap.Tooltip) return;
-    const root = container || document;
-    const existingTooltips = root.querySelectorAll('[data-bs-toggle="tooltip"]');
+    const existingTooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
     existingTooltips.forEach(tooltip => {
         if (!tooltip) return;
         const tooltipInstance = bootstrap.Tooltip.getInstance(tooltip);

@@ -6,7 +6,6 @@ import {
     restoreOriginalChannelButtonsOrder,
     filterChannelsByInput,
     getActiveChannelIds,
-    getSavedActiveChannelIds,
     getFavoriteChannels,
 } from './helpers/index.js'
 import {
@@ -17,6 +16,7 @@ import {
     LS_KEY_WELCOME_MODAL_VISIBILITY,
     CSS_CLASS_BUTTON_PRIMARY,
     ID_PREFIX_CONTAINERS_CHANNELS,
+    LS_KEY_SAVED_CHANNELS_GRID_VIEW,
     AUDIO_TV_SHUTDOWN
 } from './constants/index.js';
 import { debounce, playAudio } from './utils/index.js';
@@ -66,7 +66,14 @@ function obtenerUrlCompartirConCanalesActivos() {
     try {
         const urlBase = new URL(DATOS_NAVIGATOR_SHARE.url, window.location.href);
 
-        const ids = getSavedActiveChannelIds();
+        const payload = localStorage.getItem(LS_KEY_SAVED_CHANNELS_GRID_VIEW);
+        if (!payload) {
+            urlBase.searchParams.delete('c');
+            return urlBase.toString();
+        }
+
+        const datos = JSON.parse(payload);
+        const ids = Object.keys(datos || {});
         if (!ids.length) {
             urlBase.searchParams.delete('c');
             return urlBase.toString();

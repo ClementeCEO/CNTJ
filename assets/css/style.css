@@ -1,5 +1,5 @@
 /* 
-    style v0.32
+    style v0.28
     by Alplox 
     https://github.com/Alplox/teles
 */
@@ -472,12 +472,10 @@ pwa-update {
 .grid-stack-item .ui-resizable-handle {
   opacity: 0;
   transition: opacity 0.15s ease;
-  pointer-events: none; /* Prevent interference with drag handle */
 }
 
 .grid-stack-item:hover .ui-resizable-handle {
   opacity: 1;
-  pointer-events: auto; /* Re-enable pointer events when actively resizing */
 }
 
 .d-none__barras-overlay__overlay-boton-cambiar #overlay-boton-cambiar {
@@ -490,14 +488,6 @@ pwa-update {
 }
 
 .d-none__barras-overlay__overlay-boton-quitar #overlay-boton-quitar {
-  display: none !important;
-}
-
-.d-none__barras-overlay__overlay-boton-selecionar-señal #overlay-boton-selecionar-señal {
-  display: none !important;
-}
-
-.d-none__barras-overlay__overlay-boton-mover #overlay-boton-mover {
   display: none !important;
 }
 
@@ -1099,10 +1089,10 @@ pwa-update {
   text-shadow:
     0.06rem 0 0.06rem #ea36af,
     -0.125rem 0 0.06rem #75fa69;
-  animation: textflicker 1.5s infinite;
+  animation: textflicker 0.01s infinite;
   -webkit-animation-direction: alternate;
   animation-direction: alternate;
-  -webkit-animation: textflicker 1.5s infinite;
+  -webkit-animation: textflicker 0.01s infinite;
 }
 
 @-webkit-keyframes textflicker {

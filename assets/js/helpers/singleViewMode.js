@@ -5,7 +5,8 @@ import {
     CSS_CLASS_BUTTON_PRIMARY,
     CSS_CLASS_BUTTON_SECONDARY,
     LS_KEY_ACTIVE_VIEW_MODE,
-    LS_KEY_HORIZONTAL_WIDTH_VALUE
+    LS_KEY_HORIZONTAL_WIDTH_VALUE,
+    LS_KEY_SAVED_CHANNELS_GRID_VIEW
 } from "../constants/index.js";
 
 import {
@@ -31,7 +32,6 @@ import {
     adjustChannelButtonClass,
     hideOverlayButtonText,
     adjustBootstrapColumnClasses,
-    invalidateCachedColumnSettings,
     registerManualChannelChange,
     clearSharedUrlParameter,
     cleanTransmissionResources,
@@ -39,8 +39,7 @@ import {
     loadSingleViewOrder,
     adjustVisibilityButtonsRemoveAllActiveChannels,
     createCountryButtons,
-    createCategoryButtons,
-    getSavedActiveChannelIds
+    createCategoryButtons
 } from "./index.js";
 
 import {
@@ -216,12 +215,10 @@ const restoreBackedUpChannels = () => {
         channelDiv.dataset.canal = channelDiv.dataset.respaldo;
         channelDiv.append(crearFragmentCanal(channelDiv.dataset.canal));
         adjustChannelButtonClass(channelDiv.dataset.canal, true);
+        initializeBootstrapTooltips();
+        hideOverlayButtonText();
         channelDiv.removeAttribute('data-respaldo');
     });
-
-    // Initialize once after all channels are restored (was O(N²) inside forEach)
-    initializeBootstrapTooltips();
-    hideOverlayButtonText();
 
     return activeChannelsInDOM.length;
 };
@@ -246,7 +243,8 @@ const resetChannelButtonStyles = () => {
  * @returns {void}
  */
 const loadFirstSavedChannel = () => {
-    const channelIds = getSavedActiveChannelIds();
+    const savedChannels = JSON.parse(localStorage.getItem(LS_KEY_SAVED_CHANNELS_GRID_VIEW)) || {};
+    const channelIds = Object.keys(savedChannels);
 
     if (channelIds.length > 0) {
         try {
@@ -283,7 +281,6 @@ export function activateSingleView() {
         }
 
         localStorage.setItem(LS_KEY_ACTIVE_VIEW_MODE, 'single-view');
-        invalidateCachedColumnSettings();
 
         // In single view, clear any shared parameter `c` and disable grid-specific controls
         clearSharedUrlParameter(true);
@@ -328,7 +325,6 @@ export function activateSingleView() {
 export function deactivateSingleView({ skipDefaultChannelsLoad = false } = {}) {
     try {
         localStorage.setItem(LS_KEY_ACTIVE_VIEW_MODE, 'grid-view');
-        invalidateCachedColumnSettings();
 
         // Remove active channel from single view
         const activeChannelInSingleView = singleViewContainer.querySelector('div[data-canal]');

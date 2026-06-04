@@ -112,18 +112,19 @@ export async function m3uToJson(m3u) {
             // Using original logic structure for safety.
 
             channels[channelNameForId] = {
-                "id": channelNameForId,
-                "name": channelName,
+                "nombre": channelName,
                 "logo": logoImg,
-                "signals": [
-                    { "type": "m3u8", "url": m3u8Url }
-                ],
-                "youtube": null,
-                "last_youtube_livestreams": null,
-                "twitch": null,
-                "website": "",
-                "country": countryId,
-                "category": groupTitleId,
+                "señales": {
+                    "iframe_url": [],
+                    "m3u8_url": [m3u8Url],
+                    "yt_id": "",
+                    "yt_embed": "",
+                    "yt_playlist": "",
+                    "twitch_id": ""
+                },
+                "sitio_oficial": "",
+                "categoría": groupTitleId,
+                "país": countryId,
             };
         }
     }
