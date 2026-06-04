@@ -1,93 +1,109 @@
 import { URL_JSON_MAIN_CHANNELS } from "./constants/configGlobal.js";
-import { LS_KEY_CHANNELS_BACKUP, LS_KEY_CHANNELS_BACKUP_DATE, LS_KEY_COMBINE_PERSONALIZED_CHANNELS, LS_KEY_PERSONALIZED_LISTS } from "./constants/localStorageKeys.js";
+import { LS_KEY_COMBINE_PERSONALIZED_CHANNELS, LS_KEY_PERSONALIZED_LISTS } from "./constants/localStorageKeys.js";
 import { m3uToJson, validateM3UContent } from "./helpers/index.js";
 
-// Backup and channel fetch management
-export const DEFAULT_CHANNELS_ARRAY = ['BBC-PERSIAN-Navez', 'FOX-NEW', 't13'];
-export const EXTRA_DEFAULT_CHANNELS_ARRAY = ['MGTV-NAVEZ-CH', 'latina-noticias', 'YAHOO-BUSSINES-NAVEZ'];
+// Channel fetch management
+export const DEFAULT_CHANNELS_ARRAY = ['24-horas', 'meganoticias', 't13'];
+export const EXTRA_DEFAULT_CHANNELS_ARRAY = ['chv-noticias', 'cnn-cl', 'lofi-girl'];
 
 export let channelsList;
 
-export const BACKUP_EXPIRATION_HOURS = 24;
-export const DEFAULT_SOURCE_ORIGIN = 'Canales predeterminados (github.com/ClementeCEO/CNT)';
+export const DEFAULT_SOURCE_ORIGIN = 'Canales predeterminados (github.com/Alplox/json-teles)';
 
-/**
- * Checks if the stored backup is valid based on expiration time.
- * @returns {boolean} True if backup is valid, false otherwise.
- */
-export function isBackupValid() {
-    const dateStr = localStorage.getItem(LS_KEY_CHANNELS_BACKUP_DATE);
-    if (!dateStr) return false;
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffHours = (now - date) / (1000 * 60 * 60);
-    return diffHours < BACKUP_EXPIRATION_HOURS;
-}
-
-/**
- * Saves channel data to local storage backup.
- * @param {Object} json - The channel data to save.
- */
-export function saveChannelBackup(json) {
-    localStorage.setItem(LS_KEY_CHANNELS_BACKUP, JSON.stringify(json));
-    localStorage.setItem(LS_KEY_CHANNELS_BACKUP_DATE, new Date().toISOString());
-}
-
-/**
- * Reads channel data from local storage backup.
- * @returns {Object|null} The channel data or null if invalid/error.
- */
-export function readChannelBackup() {
-    try {
-        return JSON.parse(localStorage.getItem(LS_KEY_CHANNELS_BACKUP));
-    } catch {
-        return null;
-    }
-}
-
-// Variable to store a clean copy of base channels (without M3Us)
+// In-memory backup of base channels (without M3Us) — used by restoreChannelsFromMemory()
 let initialChannelsListBackup = null;
 
 /**
- * Fetches the main channel list from the remote source or backup.
+ * Detects if channel data uses the pre-v0.29 format (Spanish field names).
+ * @param {Object} data - The channel data to check.
+ * @returns {boolean} True if the data is in the old format.
+ */
+function isOldFormat(data) {
+    if (!data || typeof data !== 'object') return false;
+    const sample = Object.values(data)[0];
+    return !!(sample && (sample.señales || sample.nombre || sample['país'] || sample.categoría));
+}
+
+/**
+ * Migrates a collection of channels from pre-v0.29 format (Spanish fields)
+ * to the current format (English fields + signals array).
+ * @param {Object} channels - Collection of channels keyed by ID.
+ * @returns {Object} Migrated channels in the new format.
+ */
+function migrateOldFormatChannels(channels) {
+    const migrated = {};
+    for (const [id, ch] of Object.entries(channels)) {
+        if (!ch || typeof ch !== 'object') {
+            migrated[id] = ch;
+            continue;
+        }
+        const hasOldSignals = ch.señales && typeof ch.señales === 'object';
+        const signals = [];
+        if (hasOldSignals) {
+            const s = ch.señales;
+            if (Array.isArray(s.iframe_url)) {
+                s.iframe_url.filter(u => u).forEach(url => signals.push({ type: 'iframe', url }));
+            }
+            if (Array.isArray(s.m3u8_url)) {
+                s.m3u8_url.filter(u => u).forEach(url => signals.push({ type: 'm3u8', url }));
+            }
+        }
+        migrated[id] = {
+            id,
+            name: ch.nombre ?? ch.name ?? '',
+            logo: ch.logo ?? '',
+            signals,
+            youtube: ch.señales?.yt_id || ch.youtube || null,
+            last_youtube_livestreams: ch.señales?.yt_embed
+                ? [ch.señales.yt_embed].filter(Boolean)
+                : (ch.last_youtube_livestreams ?? null),
+            twitch: ch.señales?.twitch_id || ch.twitch || null,
+            website: ch.sitio_oficial ?? ch.website ?? '',
+            country: ch['país'] ?? ch.country ?? '',
+            category: ch.categoría ?? ch.category ?? '',
+        };
+    }
+    return migrated;
+}
+
+/**
+ * Fetches the main channel list from the remote source.
+ * Always fetches fresh data from the network. Falls back to the in-memory
+ * backup (initialChannelsListBackup) if the network request or JSON parse fails.
+ * Offline caching is handled by the service worker (NetworkFirst strategy).
  * @async
  * @returns {Promise<void>}
  */
 export async function fetchLoadChannels() {
     try {
-        if (isBackupValid()) {
-            console.info('[CNT] Loading channels from localStorage backup');
-            channelsList = readChannelBackup();
-            if (channelsList) {
-                // Save in-memory copy for fast restoration
-                initialChannelsListBackup = JSON.parse(JSON.stringify(channelsList));
-                return;
-            }
-        }
-        console.info('[CNT] Attempting to load main channel file');
+        console.info('[teles] Fetching channels from network');
         const response = await fetch(URL_JSON_MAIN_CHANNELS);
-        try {
-            channelsList = await response.json();
-            saveChannelBackup(channelsList);
-            assignBaseOrigin();
-
-            // Save in-memory copy
-            initialChannelsListBackup = JSON.parse(JSON.stringify(channelsList));
-        } catch (parseError) {
-            console.error('[CNT] Error parsing main JSON', parseError);
-            // Try loading backup if exists
-            if (isBackupValid()) {
-                console.warn('[CNT] Using channel list backup from localStorage due to parsing error');
-                channelsList = readChannelBackup();
-                if (channelsList) {
-                    initialChannelsListBackup = JSON.parse(JSON.stringify(channelsList));
-                    return;
-                }
+        const raw = await response.json();
+        // New format: { version, generated, total, channels: [...] }
+        // Index channels array by id into a flat object for internal use
+        if (Array.isArray(raw.channels)) {
+            const indexed = {};
+            for (const ch of raw.channels) {
+                if (ch.id) indexed[ch.id] = ch;
             }
-            throw parseError;
+            channelsList = indexed;
+        } else {
+            // Fallback: assume old format (already flat object)
+            channelsList = raw;
         }
+        assignBaseOrigin();
+
+        // Save in-memory copy for restoreChannelsFromMemory()
+        initialChannelsListBackup = JSON.parse(JSON.stringify(channelsList));
     } catch (error) {
-        throw error;
+        console.error('[teles] Error fetching channels from network:', error);
+        // Fall back to in-memory backup if available
+        if (initialChannelsListBackup) {
+            console.warn('[teles] Using in-memory channel backup due to network error');
+            channelsList = JSON.parse(JSON.stringify(initialChannelsListBackup));
+        } else {
+            throw error;
+        }
     }
 }
 
@@ -113,16 +129,16 @@ function assignBaseOrigin() {
     if (!channelsList) return;
     for (const canalId of Object.keys(channelsList)) {
         const canal = channelsList[canalId];
-        if (!canal.origenLista) {
-            canal.origenLista = DEFAULT_SOURCE_ORIGIN;
+        if (!canal.listOrigin) {
+            canal.listOrigin = DEFAULT_SOURCE_ORIGIN;
         }
-        if (!canal.origenListaOriginal) {
-            canal.origenListaOriginal = canal.origenLista;
+        if (!canal.originalListOrigin) {
+            canal.originalListOrigin = canal.listOrigin;
         }
-        if (!Array.isArray(canal.fuentesCombinadas) || canal.fuentesCombinadas.length === 0) {
-            canal.fuentesCombinadas = [canal.origenListaOriginal];
+        if (!Array.isArray(canal.combinedSources) || canal.combinedSources.length === 0) {
+            canal.combinedSources = [canal.originalListOrigin];
         }
-        canal.esSeñalCombinada = Array.isArray(canal.fuentesCombinadas) && canal.fuentesCombinadas.length > 1;
+        canal.isCombinedSignal = Array.isArray(canal.combinedSources) && canal.combinedSources.length > 1;
     }
 }
 
@@ -150,6 +166,10 @@ const areNamesSimilar = (name1, name2) => {
 function combineChannelsWithList(parseM3u = {}, { origin = 'unknown-list', source = null, combineMatches } = {}) {
     if (!parseM3u || typeof parseM3u !== 'object') return;
 
+    if (isOldFormat(parseM3u)) {
+        parseM3u = migrateOldFormatChannels(parseM3u);
+    }
+
     if (!channelsList) {
         channelsList = {};
     }
@@ -160,7 +180,7 @@ function combineChannelsWithList(parseM3u = {}, { origin = 'unknown-list', sourc
     const channelMap = {};
     if (shouldCombineMatches) {
         for (const canal of Object.keys(channelsList)) {
-            const listName = channelsList[canal].nombre ?? 'Canal sin nombre';
+            const listName = channelsList[canal].name ?? 'Canal sin nombre';
             channelMap[listName] = channelsList[canal];
         }
     }
@@ -169,7 +189,7 @@ function combineChannelsWithList(parseM3u = {}, { origin = 'unknown-list', sourc
     console.groupCollapsed(`[teles][m3u] Processing ${m3uKeys.length} channels from ${origin}`);
     for (const channelName of m3uKeys) {
         const newData = parseM3u[channelName];
-        const parsedM3uName = newData.nombre ?? 'Canal sin nombre';
+        const parsedM3uName = newData.name ?? 'Canal sin nombre';
         let existingChannel = null;
 
         if (shouldCombineMatches) {
@@ -182,33 +202,35 @@ function combineChannelsWithList(parseM3u = {}, { origin = 'unknown-list', sourc
         }
 
         if (shouldCombineMatches && existingChannel) {
-            existingChannel.señales = existingChannel.señales || {};
-            const currentM3u8s = Array.isArray(existingChannel.señales.m3u8_url)
-                ? existingChannel.señales.m3u8_url
-                : (existingChannel.señales.m3u8_url ? [existingChannel.señales.m3u8_url] : []);
+            existingChannel.signals = Array.isArray(existingChannel.signals) ? existingChannel.signals : [];
+            const currentM3u8s = existingChannel.signals
+                .filter(s => s.type === 'm3u8')
+                .map(s => s.url);
 
-            existingChannel.señales.m3u8_url = currentM3u8s;
-
-            const newUrls = (newData.señales?.m3u8_url ?? [])
+            const newUrls = (newData.signals ?? [])
+                .filter(s => s.type === 'm3u8')
+                .map(s => s.url)
                 .filter(url => url && !currentM3u8s.includes(url));
-            existingChannel.señales.m3u8_url.push(...newUrls);
-
-            const baseOrigin = existingChannel.origenListaOriginal ?? existingChannel.origenLista ?? DEFAULT_SOURCE_ORIGIN;
-            existingChannel.origenListaOriginal = baseOrigin;
-            existingChannel.origenLista = baseOrigin;
-
-            if (source && !existingChannel.fuenteLista) {
-                existingChannel.fuenteLista = source;
+            for (const url of newUrls) {
+                existingChannel.signals.push({ type: 'm3u8', url });
             }
 
-            const previousSources = Array.isArray(existingChannel.fuentesCombinadas) && existingChannel.fuentesCombinadas.length > 0
-                ? existingChannel.fuentesCombinadas
+            const baseOrigin = existingChannel.originalListOrigin ?? existingChannel.listOrigin ?? DEFAULT_SOURCE_ORIGIN;
+            existingChannel.originalListOrigin = baseOrigin;
+            existingChannel.listOrigin = baseOrigin;
+
+            if (source && !existingChannel.sourceList) {
+                existingChannel.sourceList = source;
+            }
+
+            const previousSources = Array.isArray(existingChannel.combinedSources) && existingChannel.combinedSources.length > 0
+                ? existingChannel.combinedSources
                 : [baseOrigin];
             if (origin && !previousSources.includes(origin)) {
                 previousSources.push(origin);
             }
-            existingChannel.fuentesCombinadas = previousSources;
-            existingChannel.esSeñalCombinada = existingChannel.fuentesCombinadas.length > 1;
+            existingChannel.combinedSources = previousSources;
+            existingChannel.isCombinedSignal = existingChannel.combinedSources.length > 1;
 
             console.info('[teles][m3u] Existing channel updated', {
                 origin,
@@ -216,14 +238,14 @@ function combineChannelsWithList(parseM3u = {}, { origin = 'unknown-list', sourc
                 name: parsedM3uName,
                 prevUrls: currentM3u8s,
                 addedUrls: newUrls,
-                totalSignals: existingChannel.señales.m3u8_url.length
+                totalSignals: existingChannel.signals.length
             });
         } else {
-            newData.origenLista = origin;
-            newData.origenListaOriginal = origin;
-            if (source) newData.fuenteLista = source;
-            newData.fuentesCombinadas = origin ? [origin] : [];
-            newData.esSeñalCombinada = false;
+            newData.listOrigin = origin;
+            newData.originalListOrigin = origin;
+            if (source) newData.sourceList = source;
+            newData.combinedSources = origin ? [origin] : [];
+            newData.isCombinedSignal = false;
             const resultId = getAvailableChannelId(channelName, parsedM3uName, origin);
             channelsList[resultId] = newData;
 
@@ -231,9 +253,9 @@ function combineChannelsWithList(parseM3u = {}, { origin = 'unknown-list', sourc
                 origin,
                 internalId: resultId,
                 name: parsedM3uName,
-                signals: newData.señales,
-                country: newData.país,
-                category: newData.categoría
+                signals: newData.signals,
+                country: newData.country,
+                category: newData.category
             });
         }
     }
@@ -313,11 +335,18 @@ export function restorePersonalizedLists() {
     if (!urls.length) return 0;
     console.info(`[teles][m3u] Restoring ${urls.length} pinned personalized lists`);
     let restoredCount = 0;
+    let anyMigrated = false;
     urls.forEach(url => {
         try {
             const { etiqueta = url, canales } = lists[url];
             if (!canales) return;
-            combineChannelsWithList(canales, {
+            let channelsData = canales;
+            if (isOldFormat(canales)) {
+                console.info(`[teles][m3u] Migrating old format list: ${etiqueta}`);
+                channelsData = migrateOldFormatChannels(canales);
+                anyMigrated = true;
+            }
+            combineChannelsWithList(channelsData, {
                 origin: etiqueta,
                 source: url,
                 combineMatches: getCombineChannelsPreference()
@@ -327,6 +356,16 @@ export function restorePersonalizedLists() {
             console.error(`[teles][m3u] Could not restore personalized list ${url}`, error);
         }
     });
+
+    if (anyMigrated) {
+        const allLists = readPersonalizedLists();
+        for (const url of Object.keys(allLists)) {
+            if (allLists[url]?.canales && isOldFormat(allLists[url].canales)) {
+                allLists[url].canales = migrateOldFormatChannels(allLists[url].canales);
+            }
+        }
+        localStorage.setItem(LS_KEY_PERSONALIZED_LISTS, JSON.stringify(allLists));
+    }
 
     return restoredCount;
 }
