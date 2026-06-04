@@ -1,7 +1,7 @@
 /* 
   main v0.32
-  by Alplox 
-  https://github.com/Alplox/teles
+  by ClementeCEO
+  https://github.com/ClementeCEO/CNT
 */
 
 // MARK: import
