@@ -1,7 +1,7 @@
 
 export const URL_JSON_MAIN_CHANNELS =
     // 'https://raw.githubusercontent.com/Alplox/json-teles/refs/heads/main/channels.json';
-    'https://cdn.jsdelivr.net/gh/ClementeCEO/CNT@main/canales.json';
+    'https://raw.githubusercontent.com/ClementeCEO/CNT/refs/heads/main/canales.json';
 // 'https://cdn.statically.io/gh/Alplox/json-teles/refs/heads/main/channels.json';
 // 'https://rawcdn.githack.com/Alplox/json-teles/refs/heads/main/channels.json';
 
