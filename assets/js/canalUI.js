@@ -111,7 +111,7 @@ export function crearVideoJs(canalId, urlCarga, viewMode = 'grid-view') {
                 // Almacenamos la instancia del reproductor para usarla en el futuro para limpiar recursos
                 DIV_ELEMENT._clapprPlayer = clapprPlayer;
             } catch (error) {
-                console.error(`[CNTJ] Error at attempt to initialize Clappr for channel with id: ${canalId}. Error: ${error}`);
+                console.error(`[teles] Error at attempt to initialize Clappr for channel with id: ${canalId}. Error: ${error}`);
                 showToast({
                     title: `Error al inicializar Clappr para canal ${canalId}. Se usará Video.js.`,
                     body: `Error: ${error}`,
@@ -165,7 +165,7 @@ export function crearVideoJs(canalId, urlCarga, viewMode = 'grid-view') {
                     ui.configure(config);
 
                     player.addEventListener('error', (event) => {
-                        console.error('[CNTJ] Shaka Player error:', event.detail);
+                        console.error('[teles] Shaka Player error:', event.detail);
                     });
                     await player.load(urlCarga);
                     DIV_ELEMENT._shakaPlayer = player;
@@ -180,7 +180,7 @@ export function crearVideoJs(canalId, urlCarga, viewMode = 'grid-view') {
                 // Shaka Error 1001: No se puede reproducir el contenido.
                 const isShakaError1001 = error && (error.code === 1001 || (error.detail && error.detail.code === 1001));
 
-                console.error(`[CTNJ] Error at attempt to initialize Shaka Player for channel with id: ${canalId}. Error:`, error);
+                console.error(`[teles] Error at attempt to initialize Shaka Player for channel with id: ${canalId}. Error:`, error);
 
                 if (error) {
                     showToast({
@@ -241,7 +241,7 @@ export function crearVideoJs(canalId, urlCarga, viewMode = 'grid-view') {
                 // Almacenamos la instancia del reproductor para usarla en el futuro para limpiar recursos
                 DIV_ELEMENT._oplayerPlayer = instancia;
             } catch (error) {
-                console.error(`[CTNJ] Error at attempt to initialize OPlayer for channel with id: ${canalId}. Error: ${error}`);
+                console.error(`[teles] Error at attempt to initialize OPlayer for channel with id: ${canalId}. Error: ${error}`);
                 showToast({
                     title: `Error al inicializar OPlayer para canal ${canalId}. Se usará Video.js.`,
                     body: `Error: ${error}`,
@@ -273,7 +273,7 @@ export function crearVideoJs(canalId, urlCarga, viewMode = 'grid-view') {
         // Almacenamos la instancia del reproductor para usarla en el futuro para limpiar recursos
         DIV_ELEMENT._videojsPlayer = vjsPlayer;
     } catch (error) {
-        console.error(`[CTNJ] Error at attempt to initialize Video.js for channel with id: ${canalId}. Error: ${error}`);
+        console.error(`[teles] Error at attempt to initialize Video.js for channel with id: ${canalId}. Error: ${error}`);
         showToast({
             title: `Error al inicializar Video.js para canal ${canalId}. Se procesará el siguiente canal.`,
             body: `Error: ${error}`,
@@ -442,7 +442,7 @@ export function crearOverlay(canalId, tipoSeñalCargada, valorIndex = 0, iframeS
         FRAGMENT_OVERLAY.append(DIV_ELEMENT);
         return FRAGMENT_OVERLAY;
     } catch (error) {
-        console.error(`[CTNJ] Error at attempt to create overlay for channel with id: ${canalId}. Error: ${error}`);
+        console.error(`[teles] Error at attempt to create overlay for channel with id: ${canalId}. Error: ${error}`);
         showToast({
             title: `Error al crear overlay para canal ${canalId}.`,
             body: `Error: ${error}`,
@@ -535,11 +535,11 @@ export function crearFragmentCanal(canalId, viewMode = 'grid-view') {
 
 export function cambiarSoloSeñalActiva(canalId) {
     try {
-        if (!canalId) return console.error(`[CNTJ] Error at attempt to change signal: canalId is missing.`);
+        if (!canalId) return console.error(`[teles] Error at attempt to change signal: canalId is missing.`);
 
         let divPadreACambiar = document.querySelector(`div[data-canal="${canalId}"]`);
         if (!divPadreACambiar) {
-            console.warn(`[CNTJ] Could not find container for channel "${canalId}" to change its signal.`);
+            console.warn(`[teles] Could not find container for channel "${canalId}" to change its signal.`);
             return;
         }
         let divExistenteACambiar = divPadreACambiar.querySelector(`div[data-canal-cambio="${canalId}"]`);
@@ -573,7 +573,7 @@ export function cambiarSoloSeñalActiva(canalId) {
 
 
     } catch (error) {
-        console.error(`[CNTJ] Error at attempt to change signal for channel with id: ${canalId}. Error: ${error}`);
+        console.error(`[teles] Error at attempt to change signal for channel with id: ${canalId}. Error: ${error}`);
         showToast({
             title: `Error al intentar cambiar señal para canal ${canalId}.`,
             body: `Error: ${error}`,
