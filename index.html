@@ -1,16 +1,24 @@
 <!doctype html>
 <html lang="es">
 <!--     
-    teles v0.28
-    by ClementeCEO 
-    https://github.com/ClementeCEO/CNTJ
+    teles v0.32
+    by Alplox 
+    https://github.com/Alplox/teles
 -->
 
 <head>
     <meta charset="utf-8">
+    <script type="importmap">
+    {
+        "imports": {
+            "hls.js": "https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js",
+            "hls.js/dist/hls.min.js": "https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"
+        }
+    }
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <base target="_blank">
-    <title>CNTJ - Noticias de Chile (y el mundo)</title>
+    <title>Teles - Noticias de Chile (y el mundo)</title>
     <!-- flash of light theme  -->
     <script id="theme-loader">
         (function () {
@@ -25,34 +33,33 @@
     <!-- bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
-    <!-- bootstrap icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- bootstrap icons (non-critical: preload then apply) -->
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"></noscript>
     <!-- video-js -->
     <link href="https://unpkg.com/video.js/dist/video-js.min.css" rel="stylesheet">
     <script src="https://unpkg.com/video.js/dist/video.min.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/@oplayer/core@latest/dist/index.min.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/@oplayer/hls@latest/dist/index.min.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/@oplayer/ui@latest/dist/index.min.js" defer></script>
-    <!-- Clappr -->
-    <script src="https://cdn.jsdelivr.net/npm/clappr@latest/dist/clappr.min.js" defer></script>
-    <!-- CNTJ -->
+    <!-- shaka-player (non-critical: preload then apply) -->
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/shaka-player@5.0.16/dist/controls.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shaka-player@5.0.16/dist/controls.min.css"></noscript>
+    <!-- teles -->
     <link href="assets/css/style.css" rel="stylesheet">
     <!-- Open Graph -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="CNTJ">
-    <meta property="og:url" content="https://ClementeCEO.github.io/CNTJ/">
+    <meta property="og:title" content="teles">
+    <meta property="og:url" content="https://alplox.github.io/teles/">
     <meta property="og:description"
         content="PWA Código Abierto para ver/comparar preseleccionadas transmisiones de noticias provenientes de Chile (y el mundo).">
-    <meta property="og:image" content="assets/img/previews/shots_CNTJ_v0-18_dark_canales.webp">
+    <meta property="og:image" content="assets/img/previews/example-teles-grid-view-v0-32.webp">
     <!-- Twitter Card-->
     <meta name="twitter:card"
         content="PWA Código Abierto para ver/comparar preseleccionadas transmisiones de noticias provenientes de Chile (y el mundo).">
-    <meta property="twitter:domain" content="ClementeCEO.github.io">
-    <meta property="twitter:url" content="https://ClementeCEO.github.io/CNTJ/">
-    <meta name="twitter:title" content="CNTJ">
+    <meta property="twitter:domain" content="alplox.github.io">
+    <meta property="twitter:url" content="https://alplox.github.io/teles/">
+    <meta name="twitter:title" content="teles">
     <meta name="twitter:description"
         content="PWA Código Abierto para ver/comparar preseleccionadas transmisiones de noticias provenientes de Chile (y el mundo).">
-    <meta name="twitter:image" content="assets/img/previews/shots_CNTJ_v0-18_dark_canales.webp">
+    <meta name="twitter:image" content="assets/img/previews/example-teles-grid-view-v0-32.webp">
     <!-- Favicon -->
     <link rel="apple-touch-icon" sizes="180x180" href="assets/favicon/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon/favicon-32x32.png">
@@ -71,17 +78,20 @@
         document.body.appendChild(el);
     </script>
     <!-- reloj -->
-    <script src="https://widget.time.is/t.js"></script>
+    <script src="https://widget.time.is/t.js" defer></script>
     <script>
-        time_is_widget.init({
-            Santiago_z179: {}
+        document.addEventListener('DOMContentLoaded', function () {
+            time_is_widget.init({
+                Santiago_z179: {}
+            });
         });
     </script>
-    <!-- Gridstack -->
-    <link href="https://cdn.jsdelivr.net/npm/gridstack@12.4.2/dist/gridstack.min.css" rel="stylesheet">
+    <!-- Gridstack (non-critical: preload then apply) -->
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/gridstack@12.4.2/dist/gridstack.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridstack@12.4.2/dist/gridstack.min.css"></noscript>
     <script src="https://cdn.jsdelivr.net/npm/gridstack@12.4.2/dist/gridstack-all.js" defer></script>
     <!-- Sortable -->
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.7/Sortable.min.js" defer></script>
     <!-- pwa-install -->
     <script src="https://unpkg.com/@khmyznikov/pwa-install@0.3.5/dist/pwa-install.bundle.js" defer></script>
 </head>
@@ -115,12 +125,12 @@
                 <div
                     class="tarjeta-logo-background bg-transparent bg-blur px-5 pb-4 pt-5 d-flex flex-column justify-content-center align-items-center">
                     <div class="position-relative bg-light-subtle p-1 rounded-4 shadow" tabindex="-1">
-                        <img src="assets/favicon/android-chrome-512x512.png" alt="logo TUMBAJULCA">
+                        <img src="assets/favicon/android-chrome-512x512.png" alt="logo teles">
                         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill">
-                            <i class="badge bg-secondary">v0.28</i>
+                            <i class="badge bg-secondary">v0.32</i>
                         </span>
                     </div>
-                    <p class="display-1 gradient-text">TUMBAJULCA</p>
+                    <p class="display-1 gradient-text">teles</p>
 
                     <!-- Controles de audio para música ambiente -->
                     <div id="audio-controls" class="z-3 d-flex flex-column gap-2 align-items-center p-2 rounded-4">
@@ -177,8 +187,8 @@
 
     <!-- Navbar -->
     <nav class='navbar navbar-expand-lg bg-dark-subtle shadow-sm p-1' id="navbar">
-        <div class="container-fluid">
-            <a href="./" target="_self" class="gradient-text me-2 fs-4 d-none">TUMBAJULCA</a>
+        <div class="container-fluid gap-4">
+            <a href="./" target="_self" class="gradient-text me-2 fs-4 d-none">teles</a>
             <div class="btn-group" role="group" aria-label="grupo de botones para abrir selector canales">
                 <button type="button" class="btn btn-sm btn-indigo rounded-start-pill" data-bs-toggle="offcanvas"
                     data-bs-target="#offcanvas-canales" aria-controls="offcanvas-canales"><i class="bi bi-chevron-right"
@@ -205,41 +215,31 @@
             </button>
             <div class="collapse navbar-collapse" id="navbar-toggler">
                 <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-bs-toggle="offcanvas"
+                            data-bs-target="#sidepanel"><i class="bi bi-gear"></i> Personalización</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-bs-toggle="modal"
+                            data-bs-target="#modal-creditos"><i class="bi bi-c-circle"></i> Créditos</a>
+                    </li>
+                    <!-- <li class="nav-item">
+                        <a class="nav-link" href="#" data-bs-toggle="modal"
+                            data-bs-target="#modal-bienvenida"><i class="bi bi-info-circle"></i> Descargo</a>
+                    </li> -->
+                   <!--  <li class="nav-item">
+                        <a class="nav-link" href="https://github.com/Alplox/teles"
+                            rel="nofollow noreferrer"><i class="bi bi-github"></i> Repositorio <i
+                                class="bi bi-box-arrow-up-right"></i></a>
+                    </li> -->
                     <li class="nav-item dropdown">
-                        <button type="button" class='nav-link btn dropdown-toggle' data-bs-toggle="dropdown"
+                        <button type="button" class="nav-link btn dropdown-toggle" data-bs-toggle="dropdown"
                             data-bs-auto-close="outside" aria-expanded="false" id="dropdown-about">
-                            Acerca de
+                            <i class="bi bi-code-square"></i> Variaciones de código abierto
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdown-about">
                             <li>
-                                <a class='dropdown-item' href='#' data-bs-toggle="offcanvas"
-                                    data-bs-target="#sidepanel"><i class="bi bi-gear"></i> Personalización
-                                </a>
-                            </li>
-                            <li>
-                                <a class='dropdown-item' href="#" data-bs-toggle="modal"
-                                    data-bs-target="#modal-creditos"><i class="bi bi-c-circle"></i> Créditos
-                                </a>
-                            </li>
-                            <li>
-                                <a class='dropdown-item' href='#' data-bs-toggle="modal"
-                                    data-bs-target="#modal-bienvenida"><i class="bi bi-info-circle"></i> Descargo de
-                                    responsabilidad</a>
-                            </li>
-                            <li>
-                                <a class='dropdown-item' href="https://github.com/Alplox/teles"
-                                    rel="nofollow noreferrer"><i class="bi bi-github"></i> Repositorio <i
-                                        class="bi bi-box-arrow-up-right"></i>
-                                </a>
-                            </li>
-                            <li>
-                                <hr class="dropdown-divider">
-                            </li>
-                            <li class="navbar-text dropdown-item user-select-none text-wrap">
-                                Variaciones de código abierto:
-                            </li>
-                            <li>
-                                <a class='dropdown-item' href='https://monitortv.vercel.app/Monitores/Home'
+                                <a class="dropdown-item" href="https://monitortv.vercel.app/Monitores/Home"
                                     rel="nofollow noreferrer">
                                     <img src="https://flagcdn.com/cl.svg" alt="bandera Chile" title="Chile"
                                         class="svg-bandera" />
@@ -247,7 +247,7 @@
                                 </a>
                             </li>
                             <li>
-                                <a class='dropdown-item' href='https://ver-tele.vercel.app/monitor'
+                                <a class="dropdown-item" href="https://ver-tele.vercel.app/monitor"
                                     rel="nofollow noreferrer">
                                     <img src="https://flagcdn.com/cl.svg" alt="bandera Chile" title="Chile"
                                         class="svg-bandera" />
@@ -255,7 +255,7 @@
                                 </a>
                             </li>
                             <li>
-                                <a class='dropdown-item' href='https://interneto.github.io/tv-multiview/'
+                                <a class="dropdown-item" href="https://interneto.github.io/tv-multiview/"
                                     rel="nofollow noreferrer">
                                     <img src="https://flagcdn.com/es.svg" alt="bandera España" title="España"
                                         class="svg-bandera" />
@@ -263,7 +263,7 @@
                                 </a>
                             </li>
                             <li>
-                                <a class='dropdown-item' href='https://alplox.github.io/la-tele/'
+                                <a class="dropdown-item" href="https://alplox.github.io/la-tele/"
                                     rel="nofollow noreferrer">
                                     <img src="https://flagcdn.com/cl.svg" alt="bandera Chile" title="Chile"
                                         class="svg-bandera" />
@@ -437,7 +437,7 @@
     <!-- Modal solo cambio canal activo -->
     <div class="modal fade" id="modal-cambiar-canal" tabindex="-1" aria-labelledby="modal exclusivo cambio"
         aria-hidden="true">
-        <div class="modal-dialog modal-fullscreen-sm-down modal-dialog-scrollable">
+        <div class="modal-dialog modal-fullscreen-sm-down modal-dialog-scrollable" style="content-visibility: auto; contain-intrinsic-size: auto 80vh;">
             <div class="modal-content bg-transparent bg-blur border-0">
                 <div class="modal-header bg-transparent border-0 d-flex flex-column pb-0">
                     <h2 class="text-light m-0">Cambiando canal [<span class="modal-title fs-5"
@@ -564,7 +564,7 @@
     <!-- Modal listado canales -->
     <div class="modal fade" id="modal-canales" tabindex="-1" aria-labelledby="Modal con Listado de Canales"
         aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable" style="content-visibility: auto; contain-intrinsic-size: auto 80vh;">
             <div class="modal-content text-center bg-transparent bg-blur border-0 shadow">
                 <div class="modal-header border-0">
                     <h5 class="modal-title text-light">Selecciona tus canales</h5>
@@ -857,24 +857,24 @@
     <!-- Modal bienvenida/Descargo de responsabilidad -->
     <div class="modal fade" id="modal-bienvenida" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
         aria-labelledby="Modal de Bienvenida" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl modal-fullscreen-md-down">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl modal-fullscreen-md-down" style="content-visibility: auto; contain-intrinsic-size: auto 80vh;">
             <div class="modal-content bg-transparent border-0 shadow">
                 <div class="modal-header bg-body">
                     <h5 class="modal-title text-flicker">Descargo de responsabilidad</h5>
                 </div>
                 <div class="modal-body bg-body scrollbar-thin-gray">
                     <ul class="ps-3">
-                        <li tabindex="0"><span class="text-flicker">"CNTJ"</span> es un proyecto de código abierto
+                        <li tabindex="0"><span class="text-flicker">"teles"</span> es un proyecto de código abierto
                             gratuito que permite gestionar
                             canales
                             de televisión
-                            de libre acceso por Internet. Para traders quienes amamos la velocidad en la información.</li>
-                        <li tabindex="0"><span class="text-flicker">"CNTJ"</span> no decodifica transmisiones. Los
+                            de libre acceso por Internet.</li>
+                        <li tabindex="0"><span class="text-flicker">"teles"</span> no decodifica transmisiones. Los
                             enlaces que figuran en este
                             proyecto
                             son procesados
                             desde diferentes sitios públicos con libre distribución/acceso.</li>
-                        <li tabindex="0"><span class="text-flicker">"CNTJ"</span> no posee ningún tipo de monetización,
+                        <li tabindex="0"><span class="text-flicker">"teles"</span> no posee ningún tipo de monetización,
                             en consecuencia, no se lucra
                             de
                             ninguna forma o
@@ -887,7 +887,7 @@
                             por
                             parte de cada
                             canal.</li>
-                        <li tabindex="0"><span class="text-flicker">"CNTJ"</span> no ofrece canales de pago bajo
+                        <li tabindex="0"><span class="text-flicker">"teles"</span> no ofrece canales de pago bajo
                             ninguna modalidad.</li>
                         <li tabindex="0">En este proyecto no se almacena ninguna transmisión.</li>
                         <li tabindex="0">El proyecto tanto como sus mantenedores no asumen responsabilidad alguna
@@ -937,8 +937,8 @@
                     <p>
                         <a href="https://github.com/Alplox/teles/blob/master/LICENSE" rel="nofollow noreferrer">
                             Licencia MIT <i class="bi bi-box-arrow-up-right"></i></a> — <a
-                            href="https://github.com/Alplox/teles/blob/master/NOTICE.md"
-                            rel="nofollow noreferrer">Notice <i class="bi bi-box-arrow-up-right"></i></a>
+                            href="https://github.com/Alplox/teles/blob/master/ACKNOWLEDGMENTS.md"
+                            rel="nofollow noreferrer">Reconocimientos <i class="bi bi-box-arrow-up-right"></i></a>
                     </p>
                     <hr>
                     <h5>Contribuciones</h5>
@@ -1530,8 +1530,6 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/shaka-player@5.0.8/dist/shaka-player.ui.min.js" defer></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shaka-player@5.0.8/dist/controls.min.css">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"
         defer></script>

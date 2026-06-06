@@ -1,8 +1,8 @@
 import { channelsList, DEFAULT_SOURCE_ORIGIN } from "../channelManager.js";
 import { CSS_CLASS_BUTTON_PRIMARY, CSS_CLASS_BUTTON_SECONDARY, COUNTRY_CODES, CATEGORIES_ICONS, ID_PREFIX_CONTAINERS_CHANNELS, LS_KEY_SHOW_CHANNELS_LOGO } from "../constants/index.js";
 import { singleViewVideoContainer, tele } from "../main.js";
-import { showToast, areAllSignalsEmpty, saveOriginalOrder, replaceActiveChannel, getActiveChannelIds } from "./index.js";
-import { getFavoriteChannels, isFavoritedChannel, toggleFavoriteChannel } from "./favoritesManager.js";
+import { showToast, areAllSignalsEmpty, saveOriginalOrder, replaceActiveChannel, getActiveChannelIds, normalizeInput } from "./index.js";
+import { getFavoriteChannels, toggleFavoriteChannel } from "./favoritesManager.js";
 
 
 /** @type {string} SVG placeholder for channels with unknown country */
@@ -47,6 +47,9 @@ const BUTTON_SCENARIOS = {
                 return;
             }
             replaceActiveChannel(channelId, previousChannel);
+            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                bootstrap.Modal.getInstance(modal)?.hide();
+            }
         }
     },
     'single-view': {
@@ -98,20 +101,19 @@ const BUTTON_CONTAINER_CONFIG = [
     {
         selector: '#modal-cambiar-canal-channels-buttons-container',
         scenario: 'change',
-        delegateEvents: false,
-        applyDismissAttribute: true
+        delegateEvents: true
     },
     {
         selector: '#single-view-channels-buttons-container',
         scenario: 'single-view',
-        delegateEvents: false
+        delegateEvents: true
     }
 ];
 
 /**
  * Groups channels by their list origin for creating visible blocks.
  * Favorites are shown first as a special group.
- * @returns {[string, {id: string, data: Object}[]][]} Array of [origin, channels] tuples
+ * @returns {[string, {id: string, data: Object}[]][], Set<string>} Array of [origin, channels] tuples and the favorites Set
  */
 const groupChannelsByOrigin = () => {
     const groups = new Map();
@@ -130,7 +132,7 @@ const groupChannelsByOrigin = () => {
             favorites.push({ id: channelId, data });
         } else {
             // Group by origin
-            const origin = data?.origenLista ?? DEFAULT_SOURCE_ORIGIN;
+            const origin = data?.listOrigin ?? DEFAULT_SOURCE_ORIGIN;
             if (!regularChannels[origin]) {
                 regularChannels[origin] = [];
             }
@@ -152,7 +154,7 @@ const groupChannelsByOrigin = () => {
         groups.set(origin, regularChannels[origin]);
     });
 
-    return Array.from(groups.entries());
+    return [Array.from(groups.entries()), favoriteChannelsSet];
 };
 
 /**
@@ -162,14 +164,14 @@ const groupChannelsByOrigin = () => {
  * @param {string[]} activeChannelIds - List of currently active channel IDs
  * @returns {void}
  */
-const renderButtonsInContainers = (groups, selectors = [], activeChannelIds = []) => {
+const renderButtonsInContainers = (groups, selectors = [], activeChannelIds = [], favoriteChannelsSet = new Set()) => {
     selectors.forEach(selector => {
         const container = document.querySelector(selector);
         if (!container) return;
 
         container.innerHTML = '';
         const baseId = container.id || selector.replace('#', '') || 'grupo-canales';
-        const fragment = buildChannelsFragment(groups, { baseId }, activeChannelIds);
+        const fragment = buildChannelsFragment(groups, { baseId }, activeChannelIds, favoriteChannelsSet);
         container.append(fragment);
     });
 };
@@ -182,10 +184,12 @@ const renderButtonsInContainers = (groups, selectors = [], activeChannelIds = []
  * @param {string[]} activeChannelIds - List of currently active channel IDs
  * @returns {DocumentFragment} Fragment ready to be appended
  */
-const buildChannelsFragment = (groups, { baseId = 'grupo-canales' } = {}, activeChannelIds = []) => {
+const buildChannelsFragment = (groups, { baseId = 'grupo-canales' } = {}, activeChannelIds = [], favoriteChannelsSet = new Set()) => {
     const fragment = document.createDocumentFragment();
     // Performance: read localStorage once here instead of once per button (N reads → 1 read)
     const showLogos = localStorage.getItem(LS_KEY_SHOW_CHANNELS_LOGO) === 'show';
+    // Performance: use Set for O(1) lookups instead of array .includes() O(N)
+    const activeSet = new Set(activeChannelIds);
 
     groups.forEach(([origin, channels], index) => {
         const wrapper = document.createElement('div');
@@ -210,7 +214,7 @@ const buildChannelsFragment = (groups, { baseId = 'grupo-canales' } = {}, active
         const list = document.createElement('div');
         list.classList.add('modal-body-canales');
         channels.forEach(({ id, data }) => {
-            list.append(createChannelButton(id, data, activeChannelIds, showLogos));
+            list.append(createChannelButton(id, data, activeSet, showLogos, favoriteChannelsSet));
         });
 
         const collapse = document.createElement('div');
@@ -245,21 +249,22 @@ const buildChannelsFragment = (groups, { baseId = 'grupo-canales' } = {}, active
  * @param {boolean} [showLogos=false] - Whether to show channel logos (read once by caller)
  * @returns {HTMLButtonElement} The created button element
  */
-const createChannelButton = (channelId, channelData, activeChannelIds = [], showLogos = false) => {
-    const { nombre, país } = channelData;
-    const category = (channelData.categoría ?? '').toLowerCase();
+const createChannelButton = (channelId, channelData, activeChannelIds = [], showLogos = false, favoriteChannelsSet = new Set()) => {
+    const { name, country } = channelData;
+    const category = (channelData.category ?? '').toLowerCase();
     const categoryIcon = category && category in CATEGORIES_ICONS
         ? CATEGORIES_ICONS[category]
         : '<i class="bi bi-tv"></i>';
 
-    const countryName = país && COUNTRY_CODES[país.toLowerCase()]
-        ? COUNTRY_CODES[país.toLowerCase()]
+    const countryLower = country?.toLowerCase();
+    const countryName = countryLower && COUNTRY_CODES[countryLower]
+        ? COUNTRY_CODES[countryLower]
         : 'Desconocido';
 
-    const combinedSources = Array.isArray(channelData?.fuentesCombinadas)
-        ? channelData.fuentesCombinadas.filter(Boolean)
+    const combinedSources = Array.isArray(channelData?.combinedSources)
+        ? channelData.combinedSources.filter(Boolean)
         : [];
-    const isCombinedSignal = channelData?.esSeñalCombinada === true && combinedSources.length > 1;
+    const isCombinedSignal = channelData?.isCombinedSignal === true && combinedSources.length > 1;
     const sourcesDescription = combinedSources.length > 0
         ? combinedSources.join(', ')
         : 'fuentes múltiples';
@@ -268,7 +273,7 @@ const createChannelButton = (channelId, channelData, activeChannelIds = [], show
         ? `<span class="badge badge-señal-combinada" data-bs-toggle="tooltip" data-bs-title="Señales desde: ${sourcesDescription}"><i class="bi bi-shuffle"></i> Mix</span>`
         : '';
 
-    const isFavorited = isFavoritedChannel(channelId);
+    const isFavorited = favoriteChannelsSet.has(channelId);
     const starIcon = isFavorited
         ? '<i class="bi bi-star-fill" style="color: #ffc107;"></i>'
         : '<i class="bi bi-star" style="opacity: 0.5;"></i>';
@@ -277,14 +282,16 @@ const createChannelButton = (channelId, channelData, activeChannelIds = [], show
     button.setAttribute('data-canal', channelId);
     button.setAttribute('data-country', countryName);
     button.setAttribute('data-category', category || 'undefined');
+    // Precompute normalized search text so filterChannelsByInput avoids per-keystroke NFD normalization
+    button.dataset.normalized = normalizeInput(`${countryName} - ${name}`);
 
     if (isCombinedSignal) {
         button.classList.add('canal-combinado');
-        button.dataset.fuentesCombinadas = sourcesDescription;
+        button.dataset.combinedSources = sourcesDescription;
     }
 
     button.type = 'button';
-    const isActive = activeChannelIds.includes(channelId);
+    const isActive = activeChannelIds.has(channelId);
     const initialClass = isActive ? CSS_CLASS_BUTTON_PRIMARY : CSS_CLASS_BUTTON_SECONDARY;
     button.classList.add('btn', 'btn-sm', initialClass, 'd-flex', 'align-items-center', 'gap-2', 'rounded-3', 'w-100', 'text-start', 'btn-canal');
 
@@ -292,17 +299,17 @@ const createChannelButton = (channelId, channelData, activeChannelIds = [], show
         button.classList.add('d-none');
     }
 
-    const flagHtml = país && COUNTRY_CODES[país.toLowerCase()]
-        ? `<img src="https://flagcdn.com/${país.toLowerCase()}.svg" alt="bandera ${countryName}" title="${countryName}" class="svg-bandera rounded-1">`
+    const flagHtml = countryLower && COUNTRY_CODES[countryLower]
+        ? `<img src="https://flagcdn.com/${countryLower}.svg" alt="bandera ${countryName}" title="${countryName}" class="svg-bandera rounded-1" loading="lazy">`
         : `<span class="svg-bandera rounded-1 h-100" title="Sin bandera para país [${countryName}]">${SVG_UNKNOWN_COUNTRY}</span>`;
 
     const logoHtml = showLogos && channelData.logo
-        ? `<img src="${channelData.logo}" alt="logo ${nombre}" class="logo-canal-boton rounded-1 me-1" onerror="this.style.display='none'">`
+        ? `<img src="${channelData.logo}" alt="logo ${name}" class="logo-canal-boton rounded-1 me-1" loading="lazy" onerror="this.style.display='none'">`
         : '';
 
     button.innerHTML = `
         ${logoHtml}
-        <span class="flex-grow-1 text-truncate">${nombre}</span>
+        <span class="flex-grow-1 text-truncate">${name}</span>
         ${flagHtml}
         ${categoryIcon}
         <span class="btn-favorite p-1 ms-auto" data-canal-favorite="${channelId}" title="${isFavorited ? 'Quitar de favoritos' : 'Añadir a favoritos'}" style="cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
@@ -327,20 +334,148 @@ const assignButtonEvents = () => {
         if (!container || container.dataset.eventsInitialized === 'true') return;
 
         container.dataset.eventsInitialized = 'true';
-
-        if (config.delegateEvents) {
-            registerDelegatedEvents(container, config.scenario);
-        } else {
-            registerStaticEvents(container, config.scenario, {
-                applyDismissAttribute: config.applyDismissAttribute
-            });
-        }
+        registerDelegatedEvents(container, config.scenario);
     });
 
     // Initialize favorite button handlers (only once)
     if (!favoritesHandlersInitialized) {
         initializeFavoriteButtonHandlers();
         favoritesHandlersInitialized = true;
+    }
+};
+
+/**
+ * Moves a channel button between groups (Favorites ↔ origin) across all containers.
+ * Performs surgical DOM updates without full re-render, preserving filter state.
+ * @param {string} channelId - The channel to move
+ * @param {boolean} isFavorited - Whether the channel was just favorited
+ * @returns {void}
+ */
+const moveChannelButton = (channelId, isFavorited) => {
+    const FAVORITES_LABEL = '<i class="bi bi-star-fill" style="color: #ffc107;"></i> Favoritos';
+    const channelData = channelsList[channelId];
+    const origin = channelData?.listOrigin ?? DEFAULT_SOURCE_ORIGIN;
+
+    for (const config of BUTTON_CONTAINER_CONFIG) {
+        const container = document.querySelector(config.selector);
+        if (!container) continue;
+
+        const button = container.querySelector(`button[data-canal="${channelId}"]`);
+        if (!button) continue;
+
+        const sourceGroup = button.closest('.grupo-canales-origen');
+        const targetOrigin = isFavorited ? FAVORITES_LABEL : origin;
+
+        // Find existing target group
+        let targetGroup = null;
+        const allGroups = container.querySelectorAll('.grupo-canales-origen');
+        for (const group of allGroups) {
+            if (group.dataset.origenLista === targetOrigin) {
+                targetGroup = group;
+                break;
+            }
+        }
+
+        if (targetGroup) {
+            // Move button to existing target group
+            const targetList = targetGroup.querySelector('.modal-body-canales');
+            if (targetList) {
+                targetList.append(button);
+            }
+        } else {
+            // Create new group
+            targetGroup = createGroup(targetOrigin, container.id);
+            const targetList = targetGroup.querySelector('.modal-body-canales');
+            if (targetList) {
+                targetList.append(button);
+            }
+            // Insert favorites group at the top, origin groups in sorted position
+            if (isFavorited) {
+                container.prepend(targetGroup);
+            } else {
+                const firstRegularGroup = Array.from(allGroups).find(g =>
+                    g.dataset.origenLista !== FAVORITES_LABEL
+                );
+                if (firstRegularGroup) {
+                    container.insertBefore(targetGroup, firstRegularGroup);
+                } else {
+                    container.append(targetGroup);
+                }
+            }
+        }
+
+        // Update counts
+        updateGroupCount(targetGroup);
+        if (sourceGroup && sourceGroup !== targetGroup) {
+            updateGroupCount(sourceGroup);
+            // Remove source group if empty
+            const sourceList = sourceGroup.querySelector('.modal-body-canales');
+            if (sourceList && sourceList.children.length === 0) {
+                sourceGroup.remove();
+            }
+        }
+    }
+};
+
+/**
+ * Creates a new channel group DOM structure.
+ * @param {string} origin - The origin label for the group
+ * @param {string} baseId - Base ID for generating collapse IDs
+ * @returns {HTMLDivElement} The created group wrapper
+ */
+const createGroup = (origin, baseId = 'grupo-canales') => {
+    const collapseId = `${baseId}-origen-${Date.now()}`;
+
+    const wrapper = document.createElement('div');
+    wrapper.classList.add('grupo-canales-origen', 'mb-2', 'p-2', 'rounded-3', 'border', 'border-light-subtle', 'bg-dark-subtle');
+    wrapper.setAttribute('data-origen-lista', origin);
+
+    const header = document.createElement('div');
+    header.classList.add('d-flex', 'align-items-center', 'gap-1', 'flex-wrap');
+    header.setAttribute('data-bs-toggle', 'collapse');
+    header.setAttribute('data-bs-target', `#${collapseId}`);
+    header.setAttribute('role', 'button');
+    header.setAttribute('aria-expanded', 'true');
+    header.setAttribute('aria-controls', collapseId);
+    header.innerHTML = `
+        <p class="badge rounded-pill text-bg-secondary text-wrap mb-0 w-100">${origin}</p>
+        <small class="text-secondary">0 canales</small>
+        <i class="bi bi-chevron-up ms-auto icono-estado-colapso"></i>
+    `;
+
+    const list = document.createElement('div');
+    list.classList.add('modal-body-canales');
+
+    const collapse = document.createElement('div');
+    collapse.classList.add('mt-1', 'show', 'collapse');
+    collapse.id = collapseId;
+    collapse.append(list);
+
+    const stateIcon = header.querySelector('.icono-estado-colapso');
+    const updateIcon = (isOpen) => {
+        if (!stateIcon) return;
+        stateIcon.classList.toggle('bi-chevron-up', isOpen);
+        stateIcon.classList.toggle('bi-chevron-down', !isOpen);
+    };
+    collapse.addEventListener('show.bs.collapse', () => updateIcon(true));
+    collapse.addEventListener('hide.bs.collapse', () => updateIcon(false));
+    updateIcon(true);
+
+    wrapper.append(header, collapse);
+    return wrapper;
+};
+
+/**
+ * Updates the channel count badge in a group header.
+ * @param {HTMLDivElement} group - The group wrapper element
+ * @returns {void}
+ */
+const updateGroupCount = (group) => {
+    if (!group) return;
+    const list = group.querySelector('.modal-body-canales');
+    const countEl = group.querySelector('small.text-secondary');
+    if (list && countEl) {
+        countEl.textContent = `${list.children.length} canales`;
     }
 };
 
@@ -379,10 +514,8 @@ const initializeFavoriteButtonHandlers = () => {
             ? 'Quitar de favoritos' 
             : 'Añadir a favoritos';
 
-        // Re-render channel buttons to update the favorites section
-        // This ensures the channel appears/disappears from the favorites group
-        clearRenderedContainers();
-        createChannelButtons();
+        // Surgical DOM update: move button between groups without full rebuild
+        moveChannelButton(channelId, wasAdded);
     }, { capture: true });
 };
 
@@ -399,41 +532,6 @@ const registerDelegatedEvents = (container, scenarioKey) => {
 
         handleButtonSelection(button, scenarioKey);
     });
-};
-
-/**
- * Configures direct listeners and observes changes for static containers.
- * @param {HTMLElement} container - Container element
- * @param {keyof typeof BUTTON_SCENARIOS} scenarioKey - Scenario identifier
- * @param {Object} [options={}] - Configuration options
- * @param {boolean} [options.applyDismissAttribute=false] - Whether to add dismiss attribute
- * @returns {void}
- */
-const registerStaticEvents = (container, scenarioKey, { applyDismissAttribute = false } = {}) => {
-    const updateEvents = () => {
-        const buttons = Array.from(container.querySelectorAll('button[data-canal]'));
-
-        buttons.forEach(button => {
-            const clonedButton = button.cloneNode(true);
-
-            if (applyDismissAttribute) {
-                clonedButton.setAttribute('data-bs-dismiss', 'modal');
-            }
-
-            clonedButton.addEventListener('click', () => handleButtonSelection(clonedButton, scenarioKey));
-            button.replaceWith(clonedButton);
-        });
-    };
-
-    updateEvents();
-
-    const observer = new MutationObserver(() => {
-        observer.disconnect();
-        updateEvents();
-        observer.observe(container, { childList: true, subtree: true });
-    });
-
-    observer.observe(container, { childList: true, subtree: true });
 };
 
 /**
@@ -498,7 +596,7 @@ export const clearRenderedContainers = () => {
  */
 export const createChannelButtons = (specificPrefix) => {
     try {
-        const groupedChannels = groupChannelsByOrigin();
+        const [groupedChannels, favoriteChannelsSet] = groupChannelsByOrigin();
         const targets = specificPrefix ? [specificPrefix] : ID_PREFIX_CONTAINERS_CHANNELS;
         const activeChannelIds = getActiveChannelIds();
 
@@ -506,7 +604,7 @@ export const createChannelButtons = (specificPrefix) => {
             const containerId = `${prefix}-channels-buttons-container`;
             if (renderedContainers.has(containerId)) return;
 
-            renderButtonsInContainers(groupedChannels, [`#${containerId}`], activeChannelIds);
+            renderButtonsInContainers(groupedChannels, [`#${containerId}`], activeChannelIds, favoriteChannelsSet);
             renderedContainers.add(containerId);
             saveOriginalOrder(containerId);
         });
