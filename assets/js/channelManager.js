@@ -8,7 +8,7 @@ export const EXTRA_DEFAULT_CHANNELS_ARRAY = ['chv-noticias', 'cnn-cl', 'lofi-gir
 
 export let channelsList;
 
-export const DEFAULT_SOURCE_ORIGIN = 'Canales predeterminados (github.com/Alplox/json-teles)';
+export const DEFAULT_SOURCE_ORIGIN = 'Canales predeterminados (github.com/ClementeCEO/CNT)';
 
 // In-memory backup of base channels (without M3Us) — used by restoreChannelsFromMemory()
 let initialChannelsListBackup = null;
