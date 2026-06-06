@@ -12,7 +12,7 @@ export const readActiveChannelsStorage = () => {
         const parsed = JSON.parse(payload);
         return parsed && typeof parsed === 'object' ? parsed : null;
     } catch (error) {
-        console.error('[teles] Error reading active channels from localStorage:', error);
+        console.error('[CNTJ] Error reading active channels from localStorage:', error);
         return null;
     }
 };
