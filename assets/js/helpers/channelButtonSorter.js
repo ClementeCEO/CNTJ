@@ -24,7 +24,7 @@ export function saveOriginalOrder(containerId) {
             }
         }
     } catch (e) {
-        console.error('[CNTJ] Error in saveOriginalOrder:', e);
+        console.error('[teles] Error in saveOriginalOrder:', e);
     }
 }
 
@@ -158,6 +158,6 @@ export function restoreOriginalChannelButtonsOrder(containerId) {
         }
 
     } catch (e) {
-        console.error('[CNTJ] Error in restoreOriginalChannelButtonsOrder:', e);
+        console.error('[teles] Error in restoreOriginalChannelButtonsOrder:', e);
     }
 }

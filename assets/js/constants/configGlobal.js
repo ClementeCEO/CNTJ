@@ -1,11 +1,11 @@
 
 export const URL_JSON_MAIN_CHANNELS =
-'https://raw.githubusercontent.com/ClementeCEO/CNT/main/canales.json';
+'https://raw.githubusercontent.com/Alplox/json-teles/refs/heads/main/channels.json';
 // 'https://cdn.jsdelivr.net/gh/Alplox/json-teles@refs/heads/main/channels.json';
 // 'https://cdn.statically.io/gh/Alplox/json-teles/refs/heads/main/channels.json';
 // 'https://rawcdn.githack.com/Alplox/json-teles/refs/heads/main/channels.json';
 
-export const TWITCH_PARENT = 'ClementeCEO.github.io' /* window.location.hostname */;
+export const TWITCH_PARENT = 'alplox.github.io' /* window.location.hostname */;
 
 export const CSS_CLASS_BUTTON_PRIMARY = 'btn-indigo';
 export const CSS_CLASS_BUTTON_SECONDARY = 'btn-dark-subtle';

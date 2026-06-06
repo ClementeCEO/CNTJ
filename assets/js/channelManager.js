@@ -3,12 +3,12 @@ import { LS_KEY_COMBINE_PERSONALIZED_CHANNELS, LS_KEY_PERSONALIZED_LISTS } from 
 import { m3uToJson, validateM3UContent } from "./helpers/index.js";
 
 // Channel fetch management
-export const DEFAULT_CHANNELS_ARRAY = ['BBC-PERSIAN-Navez', 'FOX-NEW', 't13'];
-export const EXTRA_DEFAULT_CHANNELS_ARRAY = ['MGTV-NAVEZ-CH', 'latina-noticias', 'YAHOO-BUSSINES-NAVEZ'];
+export const DEFAULT_CHANNELS_ARRAY = ['24-horas', 'meganoticias', 't13'];
+export const EXTRA_DEFAULT_CHANNELS_ARRAY = ['chv-noticias', 'cnn-cl', 'lofi-girl'];
 
 export let channelsList;
 
-export const DEFAULT_SOURCE_ORIGIN = 'Canales predeterminados (github.com/ClementeCEO/CNT)';
+export const DEFAULT_SOURCE_ORIGIN = 'Canales predeterminados (github.com/Alplox/json-teles)';
 
 // In-memory backup of base channels (without M3Us) — used by restoreChannelsFromMemory()
 let initialChannelsListBackup = null;
