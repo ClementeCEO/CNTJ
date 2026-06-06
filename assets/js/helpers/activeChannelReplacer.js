@@ -1,0 +1,76 @@
+import { crearFragmentCanal } from "../canalUI.js";
+import { tele } from "../main.js";
+import { showToast, adjustChannelButtonClass, saveChannelsToLocalStorageDebounced, registerManualChannelChange, hideOverlayButtonText } from "../helpers/index.js";
+import { LS_KEY_ACTIVE_VIEW_MODE } from "../constants/index.js";
+import { initializeBootstrapTooltips, disposeBootstrapTooltips } from "../utils/index.js";
+
+/**
+ * Replaces an active channel in the grid with a new one selected from the modal.
+ * Maintains the container structure and updates the necessary states.
+ * 
+ * @param {string} replacementChannelId - The ID of the new channel to insert.
+ * @param {string} existingChannelId - The ID of the currently active channel to be replaced.
+ * @returns {void}
+ */
+export const replaceActiveChannel = (replacementChannelId, existingChannelId) => {
+    try {
+        const parentContainer = document.querySelector(`div[data-canal="${existingChannelId}"]`);
+
+        if (parentContainer) {
+            const existingContentDiv = document.querySelector(`div[data-canal-cambio="${existingChannelId}"]`);
+            const existingOverlayBar = document.querySelector(`#overlay-de-canal-${existingChannelId}`);
+
+            // Prevent duplicates: if the replacement channel is already active elsewhere in the grid or single view
+            const duplicateChannelDiv = document.querySelector(`div[data-canal="${replacementChannelId}"]`);
+            if (duplicateChannelDiv && parentContainer !== duplicateChannelDiv) {
+                tele.remove(replacementChannelId);
+            }
+
+            // Remove old content
+            existingContentDiv?.remove();
+            existingOverlayBar?.remove();
+
+            // Insert new content
+            const activeViewMode = localStorage.getItem(LS_KEY_ACTIVE_VIEW_MODE) || 'grid-view';
+            const fragment = crearFragmentCanal(replacementChannelId, activeViewMode);
+
+            if (activeViewMode === 'free-view') {
+                const contentContainer = parentContainer.querySelector('.grid-stack-item-content');
+                if (contentContainer) {
+                    contentContainer.append(fragment);
+                } else {
+                    parentContainer.append(fragment);
+                }
+            } else {
+                parentContainer.append(fragment);
+            }
+
+            // Update parent attribute to reflect the new channel
+            parentContainer.setAttribute('data-canal', replacementChannelId);
+
+            // Update button styles and persistence
+            adjustChannelButtonClass(existingChannelId, false);
+            adjustChannelButtonClass(replacementChannelId, true);
+
+            saveChannelsToLocalStorageDebounced();
+            registerManualChannelChange();
+
+            // Re-initialize tooltips for the new overlay buttons inserted by crearFragmentCanal.
+            // disposeBootstrapTooltips() clears any lingering instances before re-init,
+            // since the modal that triggered this action may have left tooltip instances active.
+            disposeBootstrapTooltips();
+            initializeBootstrapTooltips();
+            hideOverlayButtonText();
+        }
+    } catch (error) {
+        console.error(`Error at attempt to replace ${existingChannelId} with ${replacementChannelId}. Error: ${error}`);
+        showToast({
+            title: `Ha ocurrido un error al intentar cambiar canal: ${existingChannelId} por canal: ${replacementChannelId}.`,
+            body: `Error: ${error}`,
+            type: 'danger',
+            autohide: false,
+            delay: 0,
+            showReloadOnError: true
+        });
+    }
+};
