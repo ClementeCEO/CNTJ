@@ -41,7 +41,7 @@ if (navigator.userAgent.toLowerCase().includes('firefox')) {
         try {
             containerInstallPwa?.showDialog?.(true); // "true" value to forced
         } catch (error) {
-            console.error('[teles] Error at attempt to show PWA install dialog:', error);
+            console.error('[CNTJ] Error at attempt to show PWA install dialog:', error);
         }
     });
 }
@@ -50,9 +50,9 @@ if (navigator.userAgent.toLowerCase().includes('firefox')) {
 
 // MARK: Botón compartir
 const DATOS_NAVIGATOR_SHARE = {
-    title: 'teles',
+    title: 'CNTJ',
     text: 'PWA Código Abierto para ver/comparar preseleccionadas transmisiones de noticias provenientes de Chile (y el mundo).',
-    url: 'https://alplox.github.io/teles/'
+    url: 'https://ClementeCEO.github.io/CNTJ/'
 };
 
 /**
@@ -106,7 +106,7 @@ function obtenerUrlCompartirConCanalesActivos() {
 
         return urlFinal;
     } catch (error) {
-        console.error('[teles] Error at attempt to generate share URL with active channels:', error);
+        console.error('[CNTJ] Error at attempt to generate share URL with active channels:', error);
         return DATOS_NAVIGATOR_SHARE.url;
     }
 }
@@ -120,7 +120,7 @@ if (navigator.share && BOTON_COMPARTIR) {
         try {
             await navigator.share(DATOS_NAVIGATOR_SHARE);
         } catch (err) {
-            console.error(`[teles] Error at attempt to share using navigator.share: ${err}`);
+            console.error(`[CNTJ] Error at attempt to share using navigator.share: ${err}`);
         }
     });
 } else {
@@ -204,7 +204,7 @@ const removeAllChannels = (withAudio = true) => {
             if (channelId) tele.remove(channelId);
         });
     } catch (error) {
-        console.error(`[teles] Error at attempt to remove all channels: ${error}`);
+        console.error(`[CNTJ] Error at attempt to remove all channels: ${error}`);
         showToast({
             title: 'Ha ocurrido un error al intentar quitar todos los canales.',
             body: `Error: ${error}`,
@@ -231,7 +231,7 @@ BOTON_BORRAR_LOCALSTORAGE?.addEventListener('click', () => {
     try {
         const safeRemoveAllChannels = () => {
             if (typeof removeAllChannels !== 'function') return;
-            try { removeAllChannels(); } catch (error) { console.error('[teles] removeAllChannels failed:', error); }
+            try { removeAllChannels(); } catch (error) { console.error('[CNTTJ] removeAllChannels failed:', error); }
         };
 
         const safeClearLocalStorage = () => {
@@ -246,7 +246,7 @@ BOTON_BORRAR_LOCALSTORAGE?.addEventListener('click', () => {
                 AUDIO_STATIC.loop = true;
                 await AUDIO_STATIC.play();
             } catch (error) {
-                console.error('[teles] AUDIO_STATIC.play() reject:', error);
+                console.error('[CNTJ] AUDIO_STATIC.play() reject:', error);
             }
         };
         safeRemoveAllChannels();
@@ -255,7 +255,7 @@ BOTON_BORRAR_LOCALSTORAGE?.addEventListener('click', () => {
 
         document.querySelector('#alerta-borrado-localstorage')?.classList.remove('d-none');
     } catch (error) {
-        console.error('[teles] Error at attempt to clear local storage: ', error);
+        console.error('[CNTJ] Error at attempt to clear local storage: ', error);
         showToast({
             title: 'Error al intentar eliminar almacenamiento local',
             body: `Error: ${error}`,
@@ -282,7 +282,7 @@ function enterFullscreen() {
             element.msRequestFullscreen();
         }
     } catch (error) {
-        console.error('[teles] Error at attempt to enter fullscreen: ', error);
+        console.error('[CNTJ] Error at attempt to enter fullscreen: ', error);
         showToast({
             title: 'Error al solicitar entrar a pantalla completa',
             body: `Error: ${error}`,
@@ -308,7 +308,7 @@ function exitFullscreen() {
             document.msExitFullscreen();
         }
     } catch (error) {
-        console.error('[teles] Error at attempt to exit fullscreen: ', error);
+        console.error('[CNTJ] Error at attempt to exit fullscreen: ', error);
         showToast({
             title: 'Error al solicitar salir de pantalla completa',
             body: `Error: ${error}`,
@@ -445,7 +445,7 @@ BOTON_COPIAR_ENLACE_COMPARTIR_SETUP?.addEventListener('click', async () => {
             throw new Error('Clipboard API no soportada o input no encontrado');
         }
     } catch (error) {
-        console.error('[teles] Error at attempt to copy link using navigator.clipboard: ', error);
+        console.error('[CNTJ] Error at attempt to copy link using navigator.clipboard: ', error);
         try {
             const textoFallback = INPUT_ENLACE_COMPARTIR_SETUP?.value ?? obtenerUrlCompartirConCanalesActivos();
             document.execCommand('copy', false, textoFallback);
@@ -453,7 +453,7 @@ BOTON_COPIAR_ENLACE_COMPARTIR_SETUP?.addEventListener('click', async () => {
             BOTON_COPIAR_ENLACE_COMPARTIR_SETUP.innerHTML = 'Copiado exitoso! <i class="bi bi-clipboard-check"></i>';
             BOTON_COPIAR_ENLACE_COMPARTIR_SETUP.classList.add('bg-success');
         } catch (execError) {
-            console.error('[teles] Error at attempt to copy link using execCommand: ', execError);
+            console.error('[CNTJ] Error at attempt to copy link using execCommand: ', execError);
             playAudio(AUDIO_FAIL);
             BOTON_COPIAR_ENLACE_COMPARTIR_SETUP.innerHTML = 'Copiado fallido! <i class="bi bi-clipboard-x"></i>';
             BOTON_COPIAR_ENLACE_COMPARTIR_SETUP.classList.add('bg-danger');
