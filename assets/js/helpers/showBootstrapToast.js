@@ -56,7 +56,7 @@ const DEFAULT_TOAST_OPTIONS = {
 export function showToast(options = {}) {
     const TOAST_CONTAINER = document.querySelector('#toast-container');
     if (!TOAST_CONTAINER) {
-        console.warn('[teles] The toast container was not found.');
+        console.warn('[CNTJ] The toast container was not found.');
         return;
     }
 
@@ -121,7 +121,7 @@ export function showToast(options = {}) {
     TOAST_CONTAINER.append(TOAST_DIV);
 
     if (typeof bootstrap === 'undefined' || !bootstrap.Toast) {
-        console.warn('[teles] Bootstrap Toast is not available.');
+        console.warn('[CNTJ] Bootstrap Toast is not available.');
         return;
     }
 
