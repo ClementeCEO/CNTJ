@@ -61,7 +61,7 @@ export const handleFloatingButtonsPositionClick = (topClass, startClass, margin 
             localStorage.setItem(LS_KEY_FLOATING_BUTTONS_POSITION, newPositionJson);
         }
     } catch (error) {
-        console.warn('[teles] The position of the floating buttons could not be saved to localStorage:', error);
+        console.warn('[CNTJ] The position of the floating buttons could not be saved to localStorage:', error);
     }
 };
 
