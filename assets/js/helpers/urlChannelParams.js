@@ -21,7 +21,7 @@ export const clearSharedUrlParameter = (force = false) => {
         sharedParameterCleaned = true;
 
     } catch (error) {
-        console.error('[teles] Error clearing shared URL parameter:', error);
+        console.error('[CNTJ] Error clearing shared URL parameter:', error);
     }
 };
 
@@ -54,7 +54,7 @@ export const getActiveChannelIds = () => {
 
         return activeChannels;
     } catch (error) {
-        console.error('[teles] Error getting active channels:', error);
+        console.error('[CNTJ] Error getting active channels:', error);
         return [];
     }
 };
@@ -76,7 +76,7 @@ export const syncActiveChannelsParameter = () => {
         window.history.replaceState({}, document.title, currentUrl.toString());
         sharedParameterCleaned = true;
     } catch (error) {
-        console.error('[teles] Error syncing dynamic URL:', error);
+        console.error('[CNTJ] Error syncing dynamic URL:', error);
     }
 };
 
@@ -114,7 +114,7 @@ export const getChannelsFromUrl = () => {
             .map(id => id.trim())
             .filter(id => id.length > 0 && channelsList?.[id]);
     } catch (error) {
-        console.error('[teles] Error reading shared channels from URL:', error);
+        console.error('[CNTJ] Error reading shared channels from URL:', error);
         return [];
     }
 }
