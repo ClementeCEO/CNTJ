@@ -24,7 +24,7 @@ export function saveOriginalOrder(containerId) {
             }
         }
     } catch (e) {
-        console.error('[teles] Error in saveOriginalOrder:', e);
+        console.error('[CNTJ] Error in saveOriginalOrder:', e);
     }
 }
 
@@ -70,7 +70,7 @@ function applySorting(containerId, compareFn) {
             });
         }
     } catch (e) {
-        console.error(`[teles] Error sorting containers (${containerId}):`, e);
+        console.error(`[CNTJ] Error sorting containers (${containerId}):`, e);
     }
 }
 
@@ -158,6 +158,6 @@ export function restoreOriginalChannelButtonsOrder(containerId) {
         }
 
     } catch (e) {
-        console.error('[teles] Error in restoreOriginalChannelButtonsOrder:', e);
+        console.error('[CNTJ] Error in restoreOriginalChannelButtonsOrder:', e);
     }
 }
