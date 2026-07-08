@@ -19,7 +19,7 @@ import {
     LS_KEY_SAVED_CHANNELS_GRID_VIEW,
     AUDIO_TV_SHUTDOWN
 } from './constants/index.js';
-import { debounce, playAudio } from './utils/index.js'; NNNN
+import { debounce, playAudio } from './utils/index.js';
 
 // MARK: Button Welcome Modal
 const buttonWelcomeModal = document.querySelector('#button-welcome-modal');
