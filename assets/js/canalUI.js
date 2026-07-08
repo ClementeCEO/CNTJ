@@ -18,7 +18,7 @@ import {
     cleanTransmissionResources,
     createButtonsForChangeChannelModal
 } from './helpers/index.js';
-import { CNTJ } from './main.js';
+import { tele } from './main.js';
 import {
     initializeBootstrapTooltips,
     disposeBootstrapTooltips,
