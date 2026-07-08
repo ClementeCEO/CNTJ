@@ -46,7 +46,7 @@ import {
     CSS_CLASS_BUTTON_PRIMARY,
     AMBIENT_MUSIC,
     ID_PREFIX_CONTAINERS_CHANNELS,
-    LS_KEY_CNTJ_GRIDSTACK_LAYOUT
+    LS_KEY_TELES_GRIDSTACK_LAYOUT
 } from './constants/index.js';
 
 import {
@@ -103,13 +103,13 @@ export const saveGridStackLayout = () => {
     if (!gridStackInstance) return;
 
     // Read the prior saved state to prevent sequential loading from erasing inactive configurations
-    const savedPayload = localStorage.getItem(LS_KEY_CNTJ_GRIDSTACK_LAYOUT);
+    const savedPayload = localStorage.getItem(LS_KEY_TELES_GRIDSTACK_LAYOUT);
     let layout = {};
     if (savedPayload) {
         try {
             layout = JSON.parse(savedPayload);
         } catch (e) {
-            console.error('[CNTJ] Error loading prior gridstack layout:', e);
+            console.error('[teles] Error loading prior gridstack layout:', e);
         }
     }
 
@@ -126,7 +126,7 @@ export const saveGridStackLayout = () => {
         }
     });
 
-    localStorage.setItem(LS_KEY_CNTJ_GRIDSTACK_LAYOUT, JSON.stringify(layout));
+    localStorage.setItem(LS_KEY_TELES_GRIDSTACK_LAYOUT, JSON.stringify(layout));
 };
 
 export let singleViewContainer;
@@ -394,7 +394,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
             hideOverlayButtonText();
         } catch (error) {
-            console.error(`[CNTJ] Error while updating overlay customization buttons. Error: ${error}`);
+            console.error(`[teles] Error while updating overlay customization buttons. Error: ${error}`);
             showToast({
                 title: 'Ha ocurrido un error durante la actualización del estado botones personalizar overlay.',
                 body: `Error: ${error}`,
@@ -501,7 +501,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 });
 
             } catch (error) {
-                console.error('[CNTJ] Error reloading channels after changing m3u8 player:', error);
+                console.error('[teles] Error reloading channels after changing m3u8 player:', error);
             }
         });
     });
@@ -787,7 +787,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 });
 
             } catch (error) {
-                console.error('[CNTJ] Error updating list after preference change', error);
+                console.error('[teles] Error updating list after preference change', error);
                 showToast({
                     title: 'Error',
                     body: 'No se pudo actualizar el listado inmediatamente. Recarga la página.',
@@ -857,7 +857,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     type: 'success'
                 });
             } catch (error) {
-                console.error('[CNTJ] Error loading personalized M3U list:', error);
+                console.error('[teles] Error loading personalized M3U list:', error);
                 showToast({
                     title: 'No fue posible cargar la lista personalizada.',
                     body: `Verifica la URL o si el servidor permite descargas (CORS). <br> Error: ${error}`,
@@ -916,7 +916,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     type: 'success'
                 });
             } catch (error) {
-                console.error('[CNTJ] Error processing manually pasted list:', error);
+                console.error('[teles] Error processing manually pasted list:', error);
                 showToast({
                     title: 'No fue posible procesar el texto pegado.',
                     body: `Revisa el formato del archivo .m3u. Error: ${error.message}`,
@@ -983,7 +983,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     toggleButton.addEventListener('click', () => {
         if (AMBIENT_MUSIC.paused) {
-            AMBIENT_MUSIC.play().catch(e => console.error('[CNTJ] Error playing audio:', e));
+            AMBIENT_MUSIC.play().catch(e => console.error('[teles] Error playing audio:', e));
             AMBIENT_MUSIC.loop = true;
             AMBIENT_MUSIC.volume = volumeSlider.value / 100;
             musicIcon.classList.replace('bi-play-fill', 'bi-pause-fill');
@@ -1058,7 +1058,7 @@ window.addEventListener('DOMContentLoaded', () => {
                                 que no están disponibles en este navegador.`,
                             type: 'info'
                         });
-                        console.info('[CNTJ] Omited channels from URL', {
+                        console.info('[teles] Omited channels from URL', {
                             totalSolicitados: totalRequestedChannels,
                             totalCargados: sharedChannels.length,
                             faltantes: difference
@@ -1099,7 +1099,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
             }
         } catch (error) {
-            console.error('[CNTJ] Error during initial load', error);
+            console.error('[teles] Error during initial load', error);
             showToast({
                 title: 'Error durante carga inicial',
                 body: `Error: ${error}`,
@@ -1203,14 +1203,14 @@ window.addEventListener('DOMContentLoaded', () => {
             try {
                 disposeBootstrapTooltips();
             } catch (e) {
-                console.error('[CNTJ] Error in Sortable onStart:', e);
+                console.error('[teles] Error in Sortable onStart:', e);
             }
         },
         onChange: () => {
             try {
                 toggleOrderedClass();
             } catch (e) {
-                console.error('[CNTJ] Error in Sortable onChange:', e);
+                console.error('[teles] Error in Sortable onChange:', e);
             }
         },
         onEnd: () => {
@@ -1220,7 +1220,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 toggleOrderedClass();
                 registerManualChannelChange();
             } catch (e) {
-                console.error('[CNTJ] Error in Sortable onEnd:', e);
+                console.error('[teles] Error in Sortable onEnd:', e);
             }
         }
     });
@@ -1237,7 +1237,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 adjustBootstrapColumnClasses?.();
                 adjustVisibilityButtonsRemoveAllActiveChannels?.();
             } catch (e) {
-                console.error('[CNTJ] Error in mutation observer', e);
+                console.error('[teles] Error in mutation observer', e);
             }
         });
     });
@@ -1292,7 +1292,7 @@ export let tele = {
      */
     add: (channelId, { skipBatchExpensiveOps = false } = {}) => {
         try {
-            if (!channelId || !channelsList?.[channelId]) return console.error(`[CNTJ] The channel "${channelId}" provided is not valid to be added.`);
+            if (!channelId || !channelsList?.[channelId]) return console.error(`[teles] The channel "${channelId}" provided is not valid to be added.`);
 
             const viewMode = localStorage.getItem(LS_KEY_ACTIVE_VIEW_MODE) || 'grid-view';
             const isSingleView = viewMode === 'single-view';
@@ -1322,7 +1322,7 @@ export let tele = {
                 fragmentContainer.append(crearFragmentCanal(channelId, viewMode));
                 channelContainer.append(fragmentContainer);
 
-                const layouts = JSON.parse(localStorage.getItem(LS_KEY_CNTJ_GRIDSTACK_LAYOUT)) || {};
+                const layouts = JSON.parse(localStorage.getItem(LS_KEY_TELES_GRIDSTACK_LAYOUT)) || {};
                 const optimalW = Math.max(2, Math.floor(12 / obtainNumberOfChannelsPerRow()));
                 const layout = layouts[channelId] || { w: optimalW, h: 3 };
 
@@ -1357,7 +1357,7 @@ export let tele = {
             adjustVisibilityButtonsRemoveAllActiveChannels?.();
             if (!isSingleView) adjustBootstrapColumnClasses();
         } catch (error) {
-            console.error(`[CNTJ] Error while creating channel container id: ${channelId}. Error: ${error}`);
+            console.error(`[teles] Error while creating channel container id: ${channelId}. Error: ${error}`);
             showToast({
                 title: `Ha ocurrido un error durante la creación canal para ser insertado - ID: ${channelId}.`,
                 body: `Error: ${error}`,
@@ -1375,7 +1375,7 @@ export let tele = {
      */
     remove: (channelId) => {
         try {
-            if (!channelId) return console.error(`[CNTJ] The channel "${channelId}" provided is not valid for removal.`);
+            if (!channelId) return console.error(`[teles] The channel "${channelId}" provided is not valid for removal.`);
 
             const currentMode = localStorage.getItem(LS_KEY_ACTIVE_VIEW_MODE);
             const isSingleView = currentMode === 'single-view';
@@ -1421,7 +1421,7 @@ export let tele = {
             registerManualChannelChange();
             adjustVisibilityButtonsRemoveAllActiveChannels?.();
         } catch (error) {
-            console.error(`[CNTJ] Error while removing channel container id: ${channelId}. Error: ${error}`);
+            console.error(`[teles] Error while removing channel container id: ${channelId}. Error: ${error}`);
             showToast({
                 title: `Ha ocurrido un error durante la eliminación canal - ID: ${channelId}.`,
                 body: `Error: ${error}`,
@@ -1466,7 +1466,7 @@ export let tele = {
                     }
                 });
             } catch (error) {
-                console.error(`[CNTJ] Error while loading default channels. Error: ${error}`);
+                console.error(`[teles] Error while loading default channels. Error: ${error}`);
                 showToast({
                     title: `Ha ocurrido un error durante la carga de canales predeterminados.`,
                     body: `Error: ${error}`,

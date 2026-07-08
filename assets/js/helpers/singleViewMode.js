@@ -303,7 +303,7 @@ export function activateSingleView() {
         document.querySelector('#boton-personalizar-boton-mover-overlay')?.classList.add('clase-vacia');
 
     } catch (error) {
-        console.error(`[CNTJ] Error activating "Single View" mode. Error: ${error}`);
+        console.error(`[teles] Error activating "Single View" mode. Error: ${error}`);
         showToast({
             title: 'Ha ocurrido un error al intentar activar el modo "Visión Única".',
             body: `Error: ${error}`,
@@ -344,7 +344,7 @@ export function deactivateSingleView({ skipDefaultChannelsLoad = false } = {}) {
             initializeBootstrapTooltips();
             registerManualChannelChange();
         } catch (error) {
-            console.error(`[CNTJ] Error removing active channel in "Single View" mode. Error: ${error}`);
+            console.error(`[teles] Error removing active channel in "Single View" mode. Error: ${error}`);
             showToast({
                 title: 'Ha ocurrido un error durante eliminación de canal activo en modo "Visión Única".',
                 body: `Error: ${error}`,
@@ -384,7 +384,7 @@ export function deactivateSingleView({ skipDefaultChannelsLoad = false } = {}) {
         registerManualChannelChange({ force: true });
 
     } catch (error) {
-        console.error(`[CNTJ] Error deactivating "Single View" mode. Error: ${error}`);
+        console.error(`[teles] Error deactivating "Single View" mode. Error: ${error}`);
         showToast({
             title: 'Ha ocurrido un error al intentar desactivar el modo "Visión Única".',
             body: `Error: ${error}`,

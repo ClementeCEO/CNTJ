@@ -30,7 +30,7 @@ const BUTTON_SCENARIOS = {
         description: 'Allows multiple active channels within the grid.',
         onSelect: ({ channelId, isSelecting }) => {
             if (!tele || typeof tele.add !== 'function' || typeof tele.remove !== 'function') {
-                console.warn("[CNTJ] Couldn't find 'tele' function to manage grid view.");
+                console.warn("[teles] Couldn't find 'tele' function to manage grid view.");
                 return;
             }
             const action = isSelecting ? 'add' : 'remove';
@@ -43,7 +43,7 @@ const BUTTON_SCENARIOS = {
             const modal = document.querySelector('#modal-cambiar-canal');
             const previousChannel = modal?.dataset.channelSource;
             if (!previousChannel) {
-                console.warn('[CNTJ] There is no channel selected to replace in the "Change channel" modal.');
+                console.warn('[teles] There is no channel selected to replace in the "Change channel" modal.');
                 return;
             }
             replaceActiveChannel(channelId, previousChannel);
@@ -53,7 +53,7 @@ const BUTTON_SCENARIOS = {
         description: 'Only allows one active channel at a time in single view.',
         onSelect: ({ channelId, isSelecting }) => {
             if (!tele || typeof tele.add !== 'function' || typeof tele.remove !== 'function') {
-                console.warn("[CNTJ] Couldn't find 'tele' function to manage single view.");
+                console.warn("[teles] Couldn't find 'tele' function to manage single view.");
                 return;
             }
             if (!singleViewVideoContainer) return;
@@ -470,7 +470,7 @@ const executeScenario = (scenarioKey, context) => {
     const scenario = BUTTON_SCENARIOS[scenarioKey];
 
     if (!scenario) {
-        console.warn(`[CNTJ] There is no configuration for the scenario "${scenarioKey}".`);
+        console.warn(`[teles] There is no configuration for the scenario "${scenarioKey}".`);
         return;
     }
 
@@ -513,7 +513,7 @@ export const createChannelButtons = (specificPrefix) => {
 
         assignButtonEvents();
     } catch (error) {
-        console.error(`[CNTJ] Error creating channel buttons. Error: ${error}`);
+        console.error(`[teles] Error creating channel buttons. Error: ${error}`);
         showToast({
             title: 'Ha ocurrido un error durante la creación de botones para los canales.',
             body: `Error: ${error}`,

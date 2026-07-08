@@ -14,7 +14,7 @@ export function getFavoriteChannels() {
         const favorites = localStorage.getItem(LS_KEY_FAVORITE_CHANNELS);
         return favorites ? JSON.parse(favorites) : [];
     } catch (error) {
-        console.warn('[CNTJ] Error reading favorites from localStorage:', error);
+        console.warn('[teles] Error reading favorites from localStorage:', error);
         return [];
     }
 }
@@ -27,7 +27,7 @@ export function saveFavorites(favorites) {
     try {
         localStorage.setItem(LS_KEY_FAVORITE_CHANNELS, JSON.stringify(favorites));
     } catch (error) {
-        console.warn('[CNTJ] Error saving favorites to localStorage:', error);
+        console.warn('[teles] Error saving favorites to localStorage:', error);
     }
 }
 

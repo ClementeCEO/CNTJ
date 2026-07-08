@@ -49,7 +49,7 @@ export const saveChannelsToLocalStorage = () => {
             }, 420);
         }
     } catch (error) {
-        console.error('[CNTJ] Error attempting to save channels to local storage:', error);
+        console.error('[teles] Error attempting to save channels to local storage:', error);
         showToast({
             title: 'Error al intentar guardar canales en el almacenamiento local.',
             body: `Error: ${error}`,

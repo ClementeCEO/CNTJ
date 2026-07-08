@@ -17,7 +17,7 @@ export const areAllSignalsEmpty = (channelId) => {
     });
 
     if (allEmpty) {
-        console.error(`[CNTJ] ${channelId} has all its signals empty`);
+        console.error(`[teles] ${channelId} has all its signals empty`);
     }
 
     return allEmpty;

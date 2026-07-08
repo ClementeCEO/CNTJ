@@ -30,7 +30,7 @@ export function syncCheckboxState({
     isVisible
 }) {
     if (!checkbox || !statusElement || !storageKey) {
-        console.warn('[CNTJ] syncCheckboxState received invalid arguments.');
+        console.warn('[teles] syncCheckboxState received invalid arguments.');
         return;
     }
 

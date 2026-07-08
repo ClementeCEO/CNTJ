@@ -12,7 +12,7 @@ export const LS_KEY_NAVBAR_VISIBILITY = 'navbar-visibility';
 
 export const LS_KEY_ACTIVE_VIEW_MODE = 'view-mode';
 
-export const LS_KEY_CNTJ_GRIDSTACK_LAYOUT = 'CNTJ-gridstack-layout';
+export const LS_KEY_TELES_GRIDSTACK_LAYOUT = 'teles-gridstack-layout';
 
 //overlay canales y opciones
 export const LS_KEY_OVERLAY_VISIBILITY = 'overlay-visibility';

@@ -95,7 +95,7 @@ export const adjustBootstrapColumnClasses = () => {
         }
 
     } catch (error) {
-        console.error('[CNTJ] Error adjusting "col" classes for active channels: ', error);
+        console.error('[teles] Error adjusting "col" classes for active channels: ', error);
         showToast({
             title: 'Ha ocurrido un error al intentar ajustar el numero de canales por fila.',
             body: `Error: ${error}`,

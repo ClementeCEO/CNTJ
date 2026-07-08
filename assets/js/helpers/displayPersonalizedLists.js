@@ -40,7 +40,7 @@ export const clearChannelListContainers = () => {
                 createCountryButtons('single-view');
                 createCategoryButtons('single-view');
             } catch (error) {
-                console.error('[CNTJ] Error recreating Single View buttons after updating list', error);
+                console.error('[teles] Error recreating Single View buttons after updating list', error);
             }
         }
     }
@@ -57,7 +57,7 @@ export const resyncActiveChannelsVisualState = () => {
             if (channelId) adjustChannelButtonClass(channelId, true);
         });
     } catch (error) {
-        console.error('[CNTJ] Error resyncing active channels visual state', error);
+        console.error('[teles] Error resyncing active channels visual state', error);
     }
 }
 
@@ -194,7 +194,7 @@ const removeChannelsBySource = (fuente) => {
             try {
                 tele.remove?.(canalId);
             } catch (error) {
-                console.warn(`[CNTJ] Couldn't remove active channel ${canalId}:`, error);
+                console.warn(`[teles] Couldn't remove active channel ${canalId}:`, error);
             }
             delete channelsList[canalId];
             eliminados++;
