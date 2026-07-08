@@ -13,7 +13,7 @@ export const DEFAULT_SOURCE_ORIGIN = 'Canales predeterminados (github.com/Clemen
 
 /**
  * Checks if the stored backup is valid based on expiration time.
- * @returns {boolean} True if backup is valid, false otherwise.
+ * @returns {boolean} True if backup is valid, false otherwise. BBBB
  */
 export function isBackupValid() {
     const dateStr = localStorage.getItem(LS_KEY_CHANNELS_BACKUP_DATE);
