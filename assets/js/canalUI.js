@@ -419,7 +419,7 @@ export function crearOverlay(canalId, tipoSeñalCargada, valorIndex = 0) {
         BOTON_QUITAR_CANAL.innerHTML = '<span>Quitar</span><i class="bi bi-x-circle"></i>';
         BOTON_QUITAR_CANAL.classList.add('btn', 'btn-sm', 'btn-danger', 'p-0', 'px-1', 'd-flex', 'gap-1', 'pe-auto', 'mt-1', 'rounded-3');
         BOTON_QUITAR_CANAL.addEventListener('click', () => {
-            tele.remove(canalId);
+            CNTJ.remove(canalId);
             playAudio(AUDIO_POP);
         });
 
