@@ -9,14 +9,12 @@ export const cleanTransmissionResources = (transmissionContainer) => {
     const changeContainer = transmissionContainer.querySelector('div[data-canal-cambio]');
     const channelId = transmissionContainer?.dataset?.canal;
 
-    if (changeContainer?._channelTimeout) {
-        clearTimeout(changeContainer._channelTimeout);
-        delete changeContainer._channelTimeout;
-    }
-
     if (changeContainer?._videojsPlayer && typeof changeContainer._videojsPlayer.dispose === 'function') {
         try {
-            changeContainer._videojsPlayer.dispose();
+            const player = changeContainer._videojsPlayer;
+            if (player && typeof player.dispose === 'function') {
+                player.dispose();
+            }
         } catch (errorVideojs) {
             console.error(`[teles] Error destroying Video.js for channel "${channelId}":`, errorVideojs);
         }

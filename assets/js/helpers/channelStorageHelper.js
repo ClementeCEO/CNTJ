@@ -2,8 +2,6 @@ import { channelsList } from "../channelManager.js";
 import { showToast } from "../helpers/index.js";
 import { LS_KEY_ACTIVE_VIEW_MODE, LS_KEY_SAVED_CHANNELS_GRID_VIEW } from "../constants/index.js";
 import { gridViewContainer, freeViewContainer } from "../main.js";
-import { debounce } from "../utils/index.js";
-import { createActiveChannelsStoragePayload } from "./activeChannelsStorage.js";
 
 /**
  * Saves the list of currently active channels in the grid view to local storage.
@@ -24,27 +22,24 @@ export const saveChannelsToLocalStorage = () => {
         const viewMode = localStorage.getItem(LS_KEY_ACTIVE_VIEW_MODE) || 'grid-view';
         const activeContainer = viewMode === 'free-view' ? freeViewContainer : gridViewContainer;
         const activeChannelsInDom = activeContainer.querySelectorAll('div[data-canal]');
-        const channelsToSave = [];
+        const channelsToSave = {};
 
         activeChannelsInDom.forEach(channelDiv => {
             const channelId = channelDiv.dataset.canal;
             const channelData = channelId && channelsList[channelId];
-            if (!channelData || !channelData.name) {
+            if (!channelData || !channelData.nombre) {
                 return; // Ignore channels not defined in channelsList
             }
-            channelsToSave.push({
-                id: channelId,
-                name: channelData.name
-            });
+            channelsToSave[channelId] = channelData.nombre;
         });
 
         // If there are active channels in DOM but nothing valid to save, do not save (prevents saving empty state incorrectly)
-        if (activeChannelsInDom.length > 0 && channelsToSave.length === 0) {
+        if (activeChannelsInDom.length > 0 && Object.keys(channelsToSave).length === 0) {
             return;
         }
 
-        // If DOM is empty (length 0), save an empty ordered payload. Correct for "saving empty state".
-        localStorage.setItem(LS_KEY_SAVED_CHANNELS_GRID_VIEW, JSON.stringify(createActiveChannelsStoragePayload(channelsToSave)));
+        // If DOM is empty (length 0), we proceed to save the empty object. So it saves `{}` to LS. Correct for "saving empty state".
+        localStorage.setItem(LS_KEY_SAVED_CHANNELS_GRID_VIEW, JSON.stringify(channelsToSave));
 
         const alertElement = document.querySelector('#alerta-guardado-canales');
         if (alertElement) {
@@ -65,11 +60,3 @@ export const saveChannelsToLocalStorage = () => {
         });
     }
 }
-
-/**
- * Debounced version of saveChannelsToLocalStorage.
- * Batches rapid successive calls into a single localStorage write (300ms window).
- * Use this for per-action saves (tele.add, tele.remove, drag, etc.).
- * @type {() => void}
- */
-export const saveChannelsToLocalStorageDebounced = debounce(saveChannelsToLocalStorage, 300);

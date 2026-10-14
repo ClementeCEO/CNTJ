@@ -6,7 +6,6 @@ import {
     restoreOriginalChannelButtonsOrder,
     filterChannelsByInput,
     getActiveChannelIds,
-    getSavedActiveChannelIds,
     getFavoriteChannels,
 } from './helpers/index.js'
 import {
@@ -17,6 +16,7 @@ import {
     LS_KEY_WELCOME_MODAL_VISIBILITY,
     CSS_CLASS_BUTTON_PRIMARY,
     ID_PREFIX_CONTAINERS_CHANNELS,
+    LS_KEY_SAVED_CHANNELS_GRID_VIEW,
     AUDIO_TV_SHUTDOWN
 } from './constants/index.js';
 import { debounce, playAudio } from './utils/index.js';
@@ -66,7 +66,14 @@ function obtenerUrlCompartirConCanalesActivos() {
     try {
         const urlBase = new URL(DATOS_NAVIGATOR_SHARE.url, window.location.href);
 
-        const ids = getSavedActiveChannelIds();
+        const payload = localStorage.getItem(LS_KEY_SAVED_CHANNELS_GRID_VIEW);
+        if (!payload) {
+            urlBase.searchParams.delete('c');
+            return urlBase.toString();
+        }
+
+        const datos = JSON.parse(payload);
+        const ids = Object.keys(datos || {});
         if (!ids.length) {
             urlBase.searchParams.delete('c');
             return urlBase.toString();
@@ -219,16 +226,36 @@ BUTTON_MODAL_REMOVE_ALL_ACTIVE_CHANNELS?.addEventListener('click', removeAllChan
 BUTTON_OFFCANVAS_REMOVE_ALL_ACTIVE_CHANNELS?.addEventListener('click', removeAllChannels);
 
 // MARK: Botón borrar localstorage
-document.querySelector('#boton-borrar-localstorage')?.addEventListener('click', () => {
+const BOTON_BORRAR_LOCALSTORAGE = document.querySelector('#boton-borrar-localstorage');
+BOTON_BORRAR_LOCALSTORAGE?.addEventListener('click', () => {
     try {
-        removeAllChannels();
-        localStorage.clear();
-        AUDIO_STATIC.volume = 0.8;
-        AUDIO_STATIC.loop = true;
-        AUDIO_STATIC.play().catch(() => {});
+        const safeRemoveAllChannels = () => {
+            if (typeof removeAllChannels !== 'function') return;
+            try { removeAllChannels(); } catch (error) { console.error('[teles] removeAllChannels failed:', error); }
+        };
+
+        const safeClearLocalStorage = () => {
+            if (!window.localStorage) return;
+            try { localStorage.clear(); } catch (error) { console.error('[teles] localStorage.clear failed:', error); }
+        };
+
+        const safePlayStatic = async () => {
+            if (!AUDIO_STATIC) return;
+            try {
+                AUDIO_STATIC.volume = 0.8;
+                AUDIO_STATIC.loop = true;
+                await AUDIO_STATIC.play();
+            } catch (error) {
+                console.error('[teles] AUDIO_STATIC.play() reject:', error);
+            }
+        };
+        safeRemoveAllChannels();
+        safeClearLocalStorage();
+        safePlayStatic();
+
         document.querySelector('#alerta-borrado-localstorage')?.classList.remove('d-none');
     } catch (error) {
-        console.error('[teles] Error clearing local storage: ', error);
+        console.error('[teles] Error at attempt to clear local storage: ', error);
         showToast({
             title: 'Error al intentar eliminar almacenamiento local',
             body: `Error: ${error}`,
@@ -237,17 +264,81 @@ document.querySelector('#boton-borrar-localstorage')?.addEventListener('click', 
             delay: 0,
             showReloadOnError: true
         });
+        return
     }
 });
 
 // MARK: Botón fullscreen
-const enterFullscreen = () => document.documentElement.requestFullscreen().catch(e => console.error('[teles] Error entering fullscreen:', e));
+function enterFullscreen() {
+    const element = document.documentElement;
+    try {
+        if (element.requestFullscreen) {
+            element.requestFullscreen();
+        } else if (element.webkitRequestFullscreen) {
+            element.webkitRequestFullscreen();
+        } else if (element.mozRequestFullScreen) {
+            element.mozRequestFullScreen();
+        } else if (element.msRequestFullscreen) {
+            element.msRequestFullscreen();
+        }
+    } catch (error) {
+        console.error('[teles] Error at attempt to enter fullscreen: ', error);
+        showToast({
+            title: 'Error al solicitar entrar a pantalla completa',
+            body: `Error: ${error}`,
+            type: 'danger',
+            autohide: false,
+            delay: 0,
+            showReloadOnError: true
+        });
+        return
+    }
+}
 
-const exitFullscreen = () => document.exitFullscreen().catch(e => console.error('[teles] Error exiting fullscreen:', e));
 
-const isFullscreenSupported = () => !!document.fullscreenEnabled;
+function exitFullscreen() {
+    try {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        } else if (document.mozCancelFullScreen) {
+            document.mozCancelFullScreen();
+        } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
+        }
+    } catch (error) {
+        console.error('[teles] Error at attempt to exit fullscreen: ', error);
+        showToast({
+            title: 'Error al solicitar salir de pantalla completa',
+            body: `Error: ${error}`,
+            type: 'danger',
+            autohide: false,
+            delay: 0,
+            showReloadOnError: true
+        });
+        return
+    }
+}
 
-const isFullscreen = () => isFullscreenSupported() && !!document.fullscreenElement;
+function isFullscreenSupported() {
+    return !!(
+        document.fullscreenEnabled
+        || document.webkitFullscreenEnabled
+        || document.mozFullScreenEnabled
+        || document.msFullscreenEnabled
+    );
+}
+
+function isFullscreen() {
+    return isFullscreenSupported() && !!(
+        document.fullscreenElement
+        || document.webkitFullscreenElement
+        || document.mozFullScreenElement
+        || document.msFullscreenElement
+        /* || window.innerHeight == screen.height */
+    );
+}
 
 const BOTON_FULLSCREEN = document.querySelector('#boton-fullscreen');
 BOTON_FULLSCREEN?.addEventListener('click', () => {
@@ -258,12 +349,14 @@ if (!isFullscreenSupported() && BOTON_FULLSCREEN?.parentElement?.parentElement) 
     BOTON_FULLSCREEN.parentElement.parentElement.classList.toggle('d-none');
 }
 
-const handleFullscreenChange = () => {
+function handleFullscreenChange() {
     if (!BOTON_FULLSCREEN) return;
     isFullscreen()
         ? (BOTON_FULLSCREEN.innerHTML = 'Salir pantalla completa <i class="bi bi-fullscreen-exit ms-auto"></i>', BOTON_FULLSCREEN.classList.replace('btn-light-subtle', CSS_CLASS_BUTTON_PRIMARY))
         : (BOTON_FULLSCREEN.innerHTML = 'Entrar pantalla completa <i class="bi bi-arrows-fullscreen ms-auto"></i>', BOTON_FULLSCREEN.classList.replace(CSS_CLASS_BUTTON_PRIMARY, 'btn-light-subtle'));
-};
+}
+
+/* window.addEventListener('resize', handleFullscreenChange); */
 
 document.addEventListener('keydown', (event) => {
     if (event.key === 'F11') {
@@ -273,56 +366,107 @@ document.addEventListener('keydown', (event) => {
 });
 
 document.addEventListener('fullscreenchange', handleFullscreenChange);
+document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+document.addEventListener('MSFullscreenChange', handleFullscreenChange);
 
 
-// MARK: Copy to clipboard
-const copyToClipboard = async (input, btn, successText, resetText) => {
-    input?.select();
-    const text = input?.value ?? '';
-    try {
-        if (navigator.clipboard && text) {
-            await navigator.clipboard.writeText(text);
-        } else {
-            document.execCommand('copy', false, text);
-        }
-        playAudio(AUDIO_SUCCESS);
-        btn.innerHTML = successText;
-        btn.classList.add('bg-success');
-    } catch {
-        playAudio(AUDIO_FAIL);
-        btn.innerHTML = 'Copiado fallido! <i class="bi bi-clipboard-x"></i>';
-        btn.classList.add('bg-danger');
-    } finally {
-        setTimeout(() => {
-            btn.innerHTML = resetText;
-            btn.classList.remove('bg-success', 'bg-danger');
-        }, 2000);
-    }
-};
-
+// MARK: Botón copiar enlace sitio
 const BOTON_COPIAR_ENLACE_COMPARTIR = document.querySelector('#boton-copiar-enlace-compartir');
 const INPUT_ENLACE_COMPARTIR = document.querySelector('#input-enlace-compartir');
-BOTON_COPIAR_ENLACE_COMPARTIR?.addEventListener('click', () =>
-    copyToClipboard(INPUT_ENLACE_COMPARTIR, BOTON_COPIAR_ENLACE_COMPARTIR,
-        'Copiado exitoso! <i class="bi bi-clipboard-check"></i>',
-        'Copiar enlace <i class="bi bi-clipboard"></i>'));
+
+BOTON_COPIAR_ENLACE_COMPARTIR?.addEventListener('click', async () => {
+    try {
+        INPUT_ENLACE_COMPARTIR?.select?.();
+
+        if (navigator.clipboard && INPUT_ENLACE_COMPARTIR) {
+            await navigator.clipboard.writeText(INPUT_ENLACE_COMPARTIR.value);
+            playAudio(AUDIO_SUCCESS);
+            BOTON_COPIAR_ENLACE_COMPARTIR.innerHTML = 'Copiado exitoso! <i class="bi bi-clipboard-check"></i>';
+            BOTON_COPIAR_ENLACE_COMPARTIR.classList.add('bg-success');
+        } else {
+            throw new Error('Clipboard API no soportada o input no encontrado');
+        }
+    } catch (error) {
+        console.error('[teles] Error at attempt to copy link using navigator.clipboard: ', error);
+        try {
+            document.execCommand('copy', false, INPUT_ENLACE_COMPARTIR?.value ?? DATOS_NAVIGATOR_SHARE.url);
+            playAudio(AUDIO_SUCCESS);
+            BOTON_COPIAR_ENLACE_COMPARTIR.innerHTML = 'Copiado exitoso! <i class="bi bi-clipboard-check"></i>';
+            BOTON_COPIAR_ENLACE_COMPARTIR.classList.add('bg-success');
+        } catch (execError) {
+            console.error('[teles] Error at attempt to copy link using execCommand: ', execError);
+            playAudio(AUDIO_FAIL);
+            BOTON_COPIAR_ENLACE_COMPARTIR.innerHTML = 'Copiado fallido! <i class="bi bi-clipboard-x"></i>';
+            BOTON_COPIAR_ENLACE_COMPARTIR.classList.add('bg-danger');
+            return;
+        }
+    } finally {
+        setTimeout(() => {
+            if (BOTON_COPIAR_ENLACE_COMPARTIR) {
+                BOTON_COPIAR_ENLACE_COMPARTIR.innerHTML = 'Copiar enlace <i class="bi bi-clipboard"></i>';
+                BOTON_COPIAR_ENLACE_COMPARTIR.classList.remove('bg-success', 'bg-danger');
+            }
+        }, 2000);
+    }
+});
 
 // MARK: Botón copiar enlace configuración de canales
 export const BOTON_COPIAR_ENLACE_COMPARTIR_SETUP = document.querySelector('#boton-copiar-enlace-compartir-setup');
 const INPUT_ENLACE_COMPARTIR_SETUP = document.querySelector('#input-enlace-compartir-setup');
 
+/**
+ * Actualiza el input de compartir configuración con la URL generada según
+ * los canales activos actuales, respetando los límites internos de
+ * obtenerUrlCompartirConCanalesActivos.
+ * @returns {void}
+ */
 function actualizarInputCompartirSetup() {
     if (!INPUT_ENLACE_COMPARTIR_SETUP) return;
     INPUT_ENLACE_COMPARTIR_SETUP.value = obtenerUrlCompartirConCanalesActivos();
 }
 
-document.querySelector('#sidepanel')?.addEventListener('shown.bs.offcanvas', actualizarInputCompartirSetup);
-
-BOTON_COPIAR_ENLACE_COMPARTIR_SETUP?.addEventListener('click', () => {
+const OFFCANVAS_PERSONALIZACION = document.querySelector('#sidepanel');
+OFFCANVAS_PERSONALIZACION?.addEventListener('shown.bs.offcanvas', () => {
     actualizarInputCompartirSetup();
-    copyToClipboard(INPUT_ENLACE_COMPARTIR_SETUP, BOTON_COPIAR_ENLACE_COMPARTIR_SETUP,
-        'Copiado exitoso! <i class="bi bi-clipboard-check"></i>',
-        'Copiar setup <i class="bi bi-clipboard"></i>');
+});
+
+BOTON_COPIAR_ENLACE_COMPARTIR_SETUP?.addEventListener('click', async () => {
+    try {
+        actualizarInputCompartirSetup();
+        INPUT_ENLACE_COMPARTIR_SETUP?.select?.();
+
+        if (navigator.clipboard && INPUT_ENLACE_COMPARTIR_SETUP) {
+            await navigator.clipboard.writeText(INPUT_ENLACE_COMPARTIR_SETUP.value);
+            playAudio(AUDIO_SUCCESS);
+            BOTON_COPIAR_ENLACE_COMPARTIR_SETUP.innerHTML = 'Copiado exitoso! <i class="bi bi-clipboard-check"></i>';
+            BOTON_COPIAR_ENLACE_COMPARTIR_SETUP.classList.add('bg-success');
+        } else {
+            throw new Error('Clipboard API no soportada o input no encontrado');
+        }
+    } catch (error) {
+        console.error('[teles] Error at attempt to copy link using navigator.clipboard: ', error);
+        try {
+            const textoFallback = INPUT_ENLACE_COMPARTIR_SETUP?.value ?? obtenerUrlCompartirConCanalesActivos();
+            document.execCommand('copy', false, textoFallback);
+            playAudio(AUDIO_SUCCESS);
+            BOTON_COPIAR_ENLACE_COMPARTIR_SETUP.innerHTML = 'Copiado exitoso! <i class="bi bi-clipboard-check"></i>';
+            BOTON_COPIAR_ENLACE_COMPARTIR_SETUP.classList.add('bg-success');
+        } catch (execError) {
+            console.error('[teles] Error at attempt to copy link using execCommand: ', execError);
+            playAudio(AUDIO_FAIL);
+            BOTON_COPIAR_ENLACE_COMPARTIR_SETUP.innerHTML = 'Copiado fallido! <i class="bi bi-clipboard-x"></i>';
+            BOTON_COPIAR_ENLACE_COMPARTIR_SETUP.classList.add('bg-danger');
+            return;
+        }
+    } finally {
+        setTimeout(() => {
+            if (BOTON_COPIAR_ENLACE_COMPARTIR_SETUP) {
+                BOTON_COPIAR_ENLACE_COMPARTIR_SETUP.innerHTML = 'Copiar setup <i class="bi bi-clipboard"></i>';
+                BOTON_COPIAR_ENLACE_COMPARTIR_SETUP.classList.remove('bg-success', 'bg-danger');
+            }
+        }, 2000);
+    }
 });
 
 // Ordenar botones canales
@@ -398,7 +542,7 @@ for (const PREFIJO of ID_PREFIX_CONTAINERS_CHANNELS) {
     document.querySelector(`#${PREFIJO}-btn-default-order`)?.addEventListener('click', () =>
         handleSortClick(PREFIJO, 'default', restoreOriginalChannelButtonsOrder));
 
-    const bodyBotonesCanales = document.querySelector(`#${PREFIJO}-channels-buttons-container`)
+    let bodyBotonesCanales = document.querySelector(`#${PREFIJO}-channels-buttons-container`)
     const inputFiltro = document.querySelector(`#${PREFIJO}-input-filtro`);
     if (!inputFiltro) continue;
 
