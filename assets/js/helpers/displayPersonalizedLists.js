@@ -1,5 +1,5 @@
 import { updatePersonalizedList, applySavedPersonalizedList, channelsList, deletePersonalizedList, getPersonalizedLists } from "../channelManager.js";
-import { ID_PREFIX_CONTAINERS_CHANNELS, LS_KEY_ACTIVE_VIEW_MODE } from "../constants/index.js";
+import { ID_PREFIX_CONTAINERS_CHANNELS, LS_KEY_ACTIVE_VIEW_MODE, LS_KEY_SAVED_CHANNELS_GRID_VIEW } from "../constants/index.js";
 import { tele } from "../main.js";
 import { formatDate } from "../utils/index.js";
 import { adjustChannelButtonClass, createCategoryButtons, createCountryButtons, createChannelButtons, createButtonsForSingleView, showToast, getActiveChannelIds, clearRenderedContainers, clearCountryRenderedContainers, clearCategoryRenderedContainers } from "./index.js";
@@ -70,7 +70,7 @@ export const renderPersonalizedListsUI = () => {
     const lists = getPersonalizedLists();
     const urls = Object.keys(lists);
     if (!urls.length) {
-        customListsContainerEl.innerHTML = '<p class="text-secondary-emphasis fs-smaller mb-0">No hay listas guardadas.</p>';
+        customListsContainerEl.innerHTML = '<p class="text-secondary fs-smaller mb-0">No hay listas guardadas.</p>';
         return;
     }
     const fragment = document.createDocumentFragment();
@@ -97,8 +97,8 @@ const createPersonalizedListCard = (url, data = {}) => {
     const bloqueInfo = document.createElement('div');
     bloqueInfo.innerHTML = `
             <p class="fw-semibold mb-0">${etiqueta}</p>
-            <small class="text-secondary-emphasis text-break">${url}</small><br>
-            <small class="text-secondary-emphasis">Actualizado: ${formatDate(data.actualizado)}</small>
+            <small class="text-secondary text-break">${url}</small><br>
+            <small class="text-secondary">Actualizado: ${formatDate(data.actualizado)}</small>
         `;
 
     const bloqueAcciones = document.createElement('div');
@@ -190,7 +190,7 @@ const removeChannelsBySource = (fuente) => {
     let eliminados = 0;
 
     Object.keys(channelsList).forEach(canalId => {
-        if (channelsList[canalId]?.sourceList === fuente) {
+        if (channelsList[canalId]?.fuenteLista === fuente) {
             try {
                 tele.remove?.(canalId);
             } catch (error) {

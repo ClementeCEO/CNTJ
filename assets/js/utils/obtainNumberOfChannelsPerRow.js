@@ -1,8 +1,7 @@
 import { LS_KEY_BOOTSTRAP_COL_NUMBER, BOOTSTRAP_COL_NUMBER_DESKTOP, BOOTSTRAP_COL_NUMBER_MOBILE } from "../constants/index.js";
 
 export const obtainNumberOfChannelsPerRow = () => {
-    let storedValue;
-    try { storedValue = JSON.parse(localStorage.getItem(LS_KEY_BOOTSTRAP_COL_NUMBER)); } catch { storedValue = null; }
+    const storedValue = JSON.parse(localStorage.getItem(LS_KEY_BOOTSTRAP_COL_NUMBER));
     const defaultColNumber = isMobile.any ? BOOTSTRAP_COL_NUMBER_MOBILE : BOOTSTRAP_COL_NUMBER_DESKTOP;
 
     const parseColNumber = (value) => {
