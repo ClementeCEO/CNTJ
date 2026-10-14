@@ -4,6 +4,198 @@ Todos los cambios notables de este proyecto se documentarán en este archivo.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v0.35]
+
+### Added
+
+- `assets/js/utils/safeStorage.js`: helpers `readJson()` / `writeJson()` / `readRaw()` / `writeRaw()`. Nunca lanzan; ante un valor corrupto reportan una vez por clave a consola y devuelven el fallback del llamador. Sustituyen a los 9 `JSON.parse(localStorage.getItem(...))` sin protección que había en el proyecto.
+- Boot watchdog en `index.html`: script clásico (no módulo) con timeout de 12 s que, si `main.js` no marca `__telesBootOk`, oculta el spinner y muestra el overlay de error con el botón de reinicio de almacenamiento. Sobrevive a un throw a nivel de módulo, caso en el que antes no había salida para el usuario.
+- `mostrarErrorCargaCanales()` y `registrarReinicioAlmacenamiento()` extraídos en `main.js`. El botón de reinicio se registra incondicionalmente al arranque, no dentro de un `catch`: un fallo anterior a `initialLoad()` dejaba la app sin forma de recuperarse.
+- `assets/js/utils/pwaInstallA11y.js`: parche de accesibilidad para el componente de terceros `<pwa-install>`, que no expone atributos en su shadow root (botón de cierre sin nombre accesible, capturas de pantalla sin `alt`). Recorre shadow roots anidados vía `MutationObserver`. Puramente aditivo.
+- `waitForGlobals()` en `loadPlayer.js`: deadline de 10 s. Antes reintentaba con `setTimeout(check, 0)` sin límite, un busy loop que bloqueaba el hilo principal si un script cargaba sin publicar su global.
+- Bloque `@media (prefers-reduced-motion: reduce)` en `style.css`: detiene las animaciones decorativas (flicker, spin, pulsate, wave).
+- Soporte `forced-colors`: el wordmark `.gradient-text` y el botón de cierre del sidepanel ahora usan `currentColor` y sobreviven a Windows High Contrast.
+- Labels e `form_factor` en las 5 capturas de pantalla de `site.webmanifest`; `og:image:width/height/alt` y `twitter:image:alt` en `index.html`.
+- `sanitizeIdToken()` en `canalUI.js`: normaliza los ids de canal para uso como id de elemento. Los ids vienen de un JSON remoto y de listas `.m3u` aportadas por el usuario, así que pueden contener caracteres válidos en un atributo `id` pero que rompen selectores CSS (`.`, `:`, `/`).
+
+### Fixed
+
+- **Dropdown de selección de señal desbordaba la página en vez de desplazarse dentro del menú.** Dos causas, ambas necesarias:
+  1. `.dropdown-menu` no tenía tope de altura. Con 24+ señales (lofi-girl: 24, times-square: 30) generaba un menú de ~976 px que se salía del viewport y añadía scrollbar al documento.
+  2. El `<ul>` heredaba `pointer-events: none` de `.barra-overlay` (que lo necesita para dejar pasar los clicks al vídeo) y no estaba en la lista de elementos que lo reactivan. La rueda del ratón desplazaba el documento en vez del menú, aunque tuviera `max-height`.
+
+  El tope es `min(24rem, 50vh)`, no un valor mayor: con el botón a media altura del viewport, el espacio disponible en la mejor dirección es 50vh, así que Popper siempre encuentra un lado donde alojar el menú. Verificado en 21 combinaciones (3 modos de visión × 7 viewports), todas con el menú dentro del viewport y con scroll propio. El caso de visión única mantiene su `position: fixed` pero con `min(400px, 50vh)`, porque Popper no puede ajustar un elemento posicionado contra el viewport.
+- Ids duplicados en los overlays: los 5 botones usaban un `id` fijo (`#overlay-boton-mover`, etc.) en lugar de clase, así que con más de un canal activo había elementos con id repetido y los selectores por id solo alcanzaban al primero. Ahora se estilan por clase y el `id` lleva sufijo por canal.
+- `<a href="#">` en el navbar convertido a `<button type="button">`: con `<base target="_blank">` un ancla abriría una pestaña duplicada si el JS de Bootstrap no cargara. Son acciones, no enlaces.
+- `aria-label` del botón de quitar: era `"Close"`, que traducía mal la acción y lo hacía indistinguible de los controles de cierre de los modales. Ahora es `Quitar canal {nombre}`.
+- Nombres accesibles en los 6 diálogos con `aria-labelledby` apuntando a un id inexistente, o `aria-label` con texto descriptivo en vez de título. Corregidos con ids reales sobre los encabezados.
+- `text-secondary` → `text-secondary-emphasis` en 33 lugares: sobre fondos oscuros el valor antiguo quedaba por debajo del ratio de contraste mínimo.
+- `Twitter Card` usaba `property=` en vez de `name=` para los tags `twitter:*`. El parser de X lee el atributo `name`, así que `twitter:domain` y `twitter:url` no se estaban aplicando.
+- La música ambiente se descargaba (1.45 MB) en cada carga. Dos causas: leer `AMBIENT_MUSIC.paused` constructúa el `Audio`, y el navegador empieza a hacer preloading en esa construcción —y ese `.paused` se leía en cada alta/baja de canal—; y el autoarranque cuando la grilla quedaba vacía perdía siempre la carrera contra la política de autoplay, pero no antes de haber descargado la pista. Ahora el estado de reproducción se lee sin instanciar el elemento (`isAudioPlaying()`), el `Audio` lleva `preload="none"`, y la música solo se reanuda tras un opt-in explícito del usuario.
+- `video.js` se cargaba como `<script defer>` en cada carga en frío (~692 KB) aunque el canal se reprodujera por iframe. Ahora se pide bajo demanda vía `loadPlayer('videojs')`, y la inicialización aborta si el nodo se desconectó mientras llegaba la librería.
+- CSS no crítico: `rel="preload" as="style"` era descartado por el service worker, que después tenía que volver a descargar cada archivo como stylesheet (~66 KB por carga). Sustituido por `media="print"` + `onload="this.media='all'"`.
+- `initializeBootstrapTooltips()` / `disposeBootstrapTooltips()` / `hideOverlayButtonText()` se llamaban sin argumento, así que cada alta y baja de canal re-escanaba el documento y re-instanciaba todos los tooltips (O(n²)). Ahora reciben el contenedor afectado. En la baja de canal, además, ya no se re-construyen los tooltips del resto de la página.
+- Tres `will-change` eliminados: `box-shadow`, `background` y `text-shadow` no son propiedades componibles, así que el hint solo reservaba recursos. El de `text-shadow` estaba además en una clase aplicada a cada `<li>` del modal de descargo.
+
+### Changed
+
+- Service worker: `networkTimeoutSeconds: 3` en las cinco rutas `NetworkFirst`. Con el default de Workbox (10 s), un arranque offline mostraba una página en blanco durante 10 s. Añadido `precacheAndRoute()` con el app shell (el README promete uso offline tras instalar, pero una primera visita offline no tenía nada que servir). `maxEntries` de JS 15 → 60 y de CSS 15 → 30, para cubrir los módulos del grafo.
+- `site.webmanifest`: `start_url`, `scope` e `id` pasan de `/teles/` a rutas relativas (`.`), para que funcione bajo cualquier subdirectorio.
+- `video.js` pineado a `8.24.1` (el `@latest` del CSS invalidaba caché).
+
+## [v0.34]
+
+### Added
+
+- `aria-label` añadido a botones overlay: mover, cambiar, sitio oficial (`canalUI.js`).
+- Modal bienvenida: `aria-labelledby` corregido a `aria-label`.
+- Rango volumen música ambiente: añadido `<label>` asociado.
+- Botón personalización: `aria-label` incluye texto visible ("Personalización").
+- Contraste de color: `.reloj a` usa `var(--bs-link-color)` en vez de `--bs-gray`.
+- Enlaces en modal body: `text-decoration: underline` para distinguirlos sin color.
+
+### Changed
+
+- video-js CSS: cambiado de render-blocking a `rel="preload"` + `onload`.
+- Google Fonts: precarga con `display=swap` y `preconnect` a `fonts.gstatic.com`.
+
+### Removed
+
+- Over-engineering: Proxy en `audiosUI.js` → getter directo con lazy init.
+- Dead code: 3 funciones no exportadas en `favoritesManager.js`.
+- `validateUrl` inlined en `m3uHelper.js`.
+- Polling loop (`setTimeout(check, 0)`) reemplazado por una microtask en `loadPlayer.js`.
+- Cache manual de relaciones eliminado en `filterRelations.js`.
+- `cachedSettings` objeto → variables individuales con `??` lazy en `adjustActiveChannelClasses.js`.
+- `scheduleIdleTask` wrapper eliminado en `main.js`.
+- Vendor-prefixed fullscreen API (`webkit`, `moz`, `ms`) eliminado en `botones.js`.
+- Clipboard duplicado (~100 líneas) extraído a `copyToClipboard()` compartida en `botones.js`.
+- Wrappers `safe*` en localStorage handler eliminados en `botones.js`.
+- JSDoc redundante y layout thrashing reducido en `overlayButtonTextHider.js`.
+- `escapeHtml` duplicado alineado con el patrón de `canalUI.js` en `channelButtonsGenerator.js`.
+
+## [v0.33]
+
+### Added
+
+- CDN fallback para JSON de canales: `URLS_JSON_MAIN_CHANNELS` array con 4 URLs, `fetchLoadChannels()` itera en orden hasta obtener respuesta válida.
+- Flag `usedCdnFallback` exportado desde `channelManager.js` indicando si la fuente no fue la primaria o se usó backup en memoria.
+- Toast warning notificando uso de fuente alternativa cuando `usedCdnFallback && channelsList`.
+- Overlay de error global (`#alerta-error-carga-canales`) con `z-9999` cuando todas las URLs fallan durante carga inicial de canales.
+- Indicador de carga con spinner Bootstrap + texto en `.fondo-global`, visible al inicio de `initialLoad()`, desaparece con canales o error.
+- `renderChannelLoadError()` en `channelButtonsGenerator.js` inyecta mensaje de error en contenedores vacíos con `addEventListener` programático.
+- Guard `!channelsList` en listeners de offcanvas/modal y en los tres button creators.
+- Cache de banderas flagcdn en localStorage como data-URI (`_tflag_` prefix): primera carga descarga SVG, segunda carga cero red.
+- Set `fetchingFlags` para evitar duplicar background fetches del mismo país en un batch.
+
+### Fixed
+
+- Logo toggle ya no recrea todos los botones DOM: ahora usa CSS class `hide-logos` en `<html>`, el `<img>` siempre se crea si `channelData.logo` existe y la visibilidad la maneja CSS.
+- `saveGridStackLayout` ahora usa `debounce(300)` en el `change` event de GridStack.
+- Eliminado listener global en fase `{ capture: true }` para favoritos: movido a `registerDelegatedEvents` verificando `event.target.closest('.btn-favorite')`.
+- `onmousemove` reemplazado por `addEventListener('mousemove', { passive: true })` para mejor rendimiento.
+- `cachedSignalPreferences` cachea `JSON.parse` de `LS_KEY_CHANNEL_SIGNAL_PREFERENCE` al cargar módulo, evitando parsear en cada `crearFragmentCanal()`.
+- `setTimeout` IDs almacenados en `DIV_ELEMENT._channelTimeout`, limpiados en `cleanTransmissionResources()` con `finally { delete DIV_ELEMENT._channelTimeout; }`.
+- CSS `will-change` añadido a `.pulsate-3`, `.wave`, `.bg-flicker::after`, `.bg-flicker::before`, `.text-flicker` para optimizar animaciones.
+- Flag CDN: `decoding="async"` + `fetchpriority="low"` en `<img>` de bandera. `addEventListener('error', ..., { once: true })` reemplaza img roto con placeholder `SVG_UNKNOWN_COUNTRY` (guard `isConnected`).
+- XSS corregido: channel names escapados con `escapeHtml()` en innerHTML y alt del logo; `countryName` escapado en title y alt de la bandera.
+- Errores silenciosos corregidos: `catch { }` vacíos en `main.js:150,636` reemplazados por `console.warn`. `.catch(() => {})` en `adjustVisibilityButtonsRemoveAllActiveChannels.js` reemplazado por `console.warn`. `formatDate.js` catch → `console.warn`.
+- `duration:` corregido a `delay:` en 2 calls a `showToast` (líneas 604, 764) — los toasts ahora duran 2s como se pretendía.
+- Null guards añadidos en ~15 lugares en `main.js`: `freeViewContainer`, `gridViewContainer`, `fullHeightCheckbox`, `floatingButtonsTextCheckbox`, `singleViewVideoContainer`, `TARJETA_LOGO_BACKGROUND`, `singleViewGrid`, etc. Uso de `?.` en method calls y `if (container)` en assignments.
+- `obtainNumberOfChannelsPerRow.js`: `JSON.parse` envuelto en try/catch.
+- `cleanTransmissionResources.js`: inner redundante `if (player && typeof player.dispose...)` eliminado.
+- `screen.orientation` guardado con `screen?.orientation?.addEventListener(...)` para evitar error en entornos restringidos.
+- Logo toggle vía CSS class evita cientos de mutaciones DOM por clic (pasa de recrear N botones a una sola operación de clase en `<html>`).
+- Favoritos sin `{ capture: true }`: integrados en delegación por contenedor, elimina listener global en fase capture.
+- Flag CDN cacheada en localStorage como data-URI: elimina ~100 requests por open de offcanvas tras la primera carga.
+
+### Removed
+
+- Código muerto: `export` removido de `gridStackInstance`, `saveGridStackLayout` (main.js), `readActiveChannelsStorage` (activeChannelsStorage.js), `addToFavorites`, `removeFromFavorites`, `clearAllFavorites` (favoritesManager.js).
+
+## [v0.32]
+
+### Fixed
+
+- Agrega loading="lazy" a los <img> de logos y banderas
+- Aumenta maxEntries de 15 a un valor mayor + estrategia CacheFirst para imágenes externas con caché del service worker.
+- CSS render-blocking: Bootstrap Icons, Gridstack y Shaka Player CSS ahora usan `rel="preload" as="style"` para descarga en paralelo sin bloquear rendering.
+- time.is widget script carga con `defer` e init en `DOMContentLoaded` para no bloquear parsing HTML.
+- `initializeBootstrapTooltips()` acepta parámetro opcional `container` para acotar búsqueda a un contenedor específico en vez de escanear TODO el DOM.
+- `hideOverlayButtonText()` acepta parámetro opcional `container` + early return si no hay overlays, evitando querySelectorAll innecesario.
+- `saveChannelsToLocalStorage()` ahora tiene versión debounced (300ms) para llamadas per-action (add, remove, drag, sort). Las llamadas batch mantienen escritura síncrona.
+- `adjustBootstrapColumnClasses()` cachea lecturas de localStorage (`viewMode`, `colNumber`, `fullHeight`) y se invalida automáticamente tras cada `localStorage.setItem` relevante vía `invalidateCachedColumnSettings()`.
+- `registerStaticEvents()` clonaba y reemplazaba CADA botón en cada cambio de DOM via MutationObserver. Ahora todos los contenedores usan event delegation (`registerDelegatedEvents`), eliminando clonado innecesario.
+- Player libraries (Clappr, OPlayer, Shaka) se cargaban estáticamente en `<head>` aunque solo se usara uno. Ahora se cargan dinámicamente bajo demanda vía `loadPlayer()`, reduciendo bundle inicial ~60%.
+- Clappr migrado de paquete deprecado `clappr@latest` a `@clappr/player@0.11.16`.
+- OPlayer pineado a versiones estables: `@oplayer/core@1.2.37`, `@oplayer/hls@1.2.27`, `@oplayer/ui@1.3.3`.
+- Shaka Player pineado a `shaka-player@5.0.16` (CSS movido a head con preload).
+- El modal "Cambiar canal" ahora se cierra vía `bootstrap.Modal.getInstance().hide()` en el scenario `change` en vez de `data-bs-dismiss="modal"` en cada botón.
+- `adjustChannelButtonClass()` realizaba `querySelectorAll` sobre TODO el documento por cada canal. Ahora se buscan botones dentro de los contenedores conocidos (`ID_PREFIX_CONTAINERS_CHANNELS`), reduciendo alcance de búsqueda.
+- Sortable.js pineado a `1.15.7` (era `@latest`, invalidaba caché del navegador).
+- Animación `textflicker` reducida de `0.01s` (100fps) a `1.5s`, eliminando repaints innecesarios en el logo "teles".
+- Modales ocultos (`modal-cambiar-canal`, `modal-canales`, `modal-bienvenida`) ahora usan `content-visibility: auto` para saltar rendering/paint cuando están cerrados.
+- El orden de canales activos ahora se persiste con un array `order`, evitando que IDs numericos de listas personalizadas salten al inicio tras recargar por la enumeracion de claves de objetos en JavaScript.
+
+## [v0.31]
+
+### Fixed
+
+- Corregido que al marcar/desmarcar un canal como favorito se perdían los filtros activos y se reconstruían todos los botones de canal. `moveChannelButton()` realiza actualizaciones quirúrgicas del DOM moviendo solo el botón afectado entre grupos, preservando estado de filtros de país, categoría y búsqueda.
+- `isFavoritedChannel()` se ejecutaba por cada botón, parseando `localStorage` N veces por render. Ahora se construye un `Set` una sola vez en `groupChannelsByOrigin()` y se pasa a `createChannelButton()`, reduciendo N lecturas a 1.
+- `activeChannelIds.includes()` era O(N) por botón. Convertido a `Set` con `.has()` para búsquedas O(1).
+- `filterRelations.js` reconstruía los mapas de país-categoría en cada cambio de filtro. Ahora se cachea el resultado y se invalida solo cuando cambia `channelsList`.
+- `crearFragmentCanal()` filtraba `signals` redundantly para iframe/m3u8, y luego `crearIframe()` y `crearOverlay()` filtraban de nuevo. Ahora se computa una vez y se pasa como parámetro.
+- Clappr, Shaka y OPlayer se inicializaban con `setTimeout(0)`. Si el elemento DOM se eliminaba antes del timeout, el reproductor se inicializaba en un elemento desconectado y nunca se limpiaba. Ahora se verifica `DIV_ELEMENT.isConnected` antes de inicializar.
+- Eliminados wrappers `JSON.stringify(localStorage.setItem(...))` que eran no-op (localStorage.setItem retorna `undefined`).
+- Objetos `Audio` se instanciaban eager al cargar el módulo (8 fetches HTTP + memoria permanente). Ahora se usa Proxy lazy-loading: el `Audio` solo se crea en la primera reproducción.
+- `audio.play()` retorna Promise pero el rejection no se manejaba (política de autoplay del navegador). Ahora se captura con `.catch()`.
+- `tele.add()` parseaba `JSON.parse(localStorage.getItem(LS_KEY_TELES_GRIDSTACK_LAYOUT))` por cada canal añadido en free-view. Ahora se cachea y se invalida en `saveGridStackLayout()`.
+- `saveChannelsToLocalStorage()` se ejecutaba por cada `tele.add()` durante carga por lotes (N serializaciones + writes). Ahora se añade opción `skipSaveChannels` y se escribe una sola vez al final del lote.
+- `saveGridStackLayout()` se ejecutaba en `change` + `resizestop` + `dragstop` (duplicado). Ahora solo `change` ejecuta el guardado; `resizestop` y `dragstop` se eliminan.
+- `normalizeInput()` se ejecutaba por cada botón en cada keystroke del filtro (N normalizaciones por tecla). Ahora se precomputa una vez al crear el botón y se almacena en `data-normalized`.
+- `filterChannelsByInput()` consultaba el DOM para filters de país/categoría en cada keystroke. Ahora se cachea el estado activo en un `Map` y solo se actualiza cuando el usuario cambia el filtro.
+- `initializeBootstrapTooltips()` se ejecutaba dentro de `forEach` en `restoreBackedUpChannels()` — O(N²). Ahora se ejecuta una sola vez después del loop.
+- `country.toLowerCase()` se computaba 4 veces por botón. Ahora se calcula una sola vez.
+- `createCountryButtons()` y `createCategoryButtons()` hacían 4 pasadas sobre `channelsList` (map→Set→reduce→filter+sort). Ahora se consolida en una sola pasada con `for...of` + `reduce`.
+- Corregido XSS en `crearOverlay()`: `name` y `COUNTRY_CODES[country]` se interpolaban directamente en `innerHTML` sin escapar. Ahora se usa `escapeHtml()` para prevenir inyección de HTML.
+
+### Changed
+
+- Eliminado mecanismo de caché en localStorage para `channels.json` (`backup-json-channels`, `backup-json-channels-date`, `backup-json-channels-version`). `fetchLoadChannels()` ahora siempre obtiene datos frescos de la red. El caché offline lo maneja el service worker con estrategia NetworkFirst.
+- Añadida ruta NetworkFirst para archivos JSON en `pwabuilder-sw.js` — permite acceso offline a `channels.json` desde la caché del service worker sin ventanas de expiración de 24h.
+- Renombra `NOTICE.md` a `ACKNOWLEDGMENTS.md` y traduce a inglés.
+
+## [v0.30]
+
+### Fixed
+
+- Corregido backup de canales en localStorage con formato antiguo (pre-v0.29) que causaba señales vacías. Ahora `isBackupValid()` verifica la versión del formato y `isOldFormat()` detecta campos heredados (`señales`, `nombre`, `país`, `categoría`), descartando automáticamente backups obsoletos y forzando carga fresca desde la red.
+- Corregido listas personalizadas M3U guardadas en `personalized-lists-m3u` con formato antiguo (pre-v0.29) que ocultaba todos los botones de canales. `migrateOldFormatChannels()` convierte campos `señales` → `signals`, `nombre` → `name`, `país` → `country`, etc. La migración se aplica al restaurar listas fijadas y se persiste en localStorage para futuras cargas.
+
+### Changed
+
+- Añadida constante `BACKUP_FORMAT_VERSION` para invalidar backups de formatos anteriores de forma automática en futuras migraciones de datos.
+
+## [v0.29]
+
+### Changed
+
+- Migrado frontend para compatibilidad con `json-teles` v2.0.0:
+  - URL remota cambia de `canales.json` a `channels.json`.
+  - `channels` se indexa por `id` en un objeto plano para uso interno.
+  - Señales: de objeto `señales` (`iframe_url[]`, `m3u8_url[]`, `yt_id`, `yt_embed`, `yt_playlist`, `twitch_id`) a array `signals[{type, url}]` + campos `youtube`, `twitch`, `last_youtube_livestreams`.
+  - Campos de datos: `nombre` → `name`, `país` → `country`, `categoría` → `category`, `sitio_oficial` → `website`.
+  - Campos metadata internos: `origenLista` → `listOrigin`, `origenListaOriginal` → `originalListOrigin`, `fuentesCombinadas` → `combinedSources`, `esSeñalCombinada` → `isCombinedSignal`, `fuenteLista` → `sourceList`.
+  - Dropdown de selección de señales ahora muestra YouTube Canal ID y YouTube Último Live como opciones separadas.
+  - `m3uToJson()` produce el nuevo formato.
+
+### Fixed
+
+- Corregido `.includes()` con múltiples argumentos que solo validaba el primero (referrer policy para YouTube).
+- Corregido `website !== ''` que no manejaba `null`/`undefined`, resultando en hrefs `"null"`.
+- Corregido `countryButtonCreator` que fallaba con `country` nulo.
+
 ## [v0.28]
 
 ### Added

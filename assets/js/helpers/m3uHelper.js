@@ -61,10 +61,6 @@ export async function m3uToJson(m3u) {
         .map(line => line.trim())
         .filter(line => line !== '');
 
-    const validateUrl = (url) => {
-        return STREAM_URL_REGEX.test(url) || SIMPLE_HTTP_URL_REGEX.test(url);
-    };
-
     for (let i = 1; i < lines.length; i++) {
         // Skip comment lines entirely, unless it's an #EXTINF line we are processing
         if (lines[i].startsWith('#') && !lines[i].toUpperCase().startsWith('#EXTINF')) {
@@ -99,8 +95,9 @@ export async function m3uToJson(m3u) {
             let j = i + 1;
             while (j < lines.length) {
                 if (!lines[j].startsWith('#')) {
-                    if (validateUrl(lines[j].trim())) {
-                        m3u8Url = lines[j].trim();
+                    const url = lines[j].trim();
+                    if (STREAM_URL_REGEX.test(url) || SIMPLE_HTTP_URL_REGEX.test(url)) {
+                        m3u8Url = url;
                     }
                     break;
                 }
@@ -112,19 +109,18 @@ export async function m3uToJson(m3u) {
             // Using original logic structure for safety.
 
             channels[channelNameForId] = {
-                "nombre": channelName,
+                "id": channelNameForId,
+                "name": channelName,
                 "logo": logoImg,
-                "señales": {
-                    "iframe_url": [],
-                    "m3u8_url": [m3u8Url],
-                    "yt_id": "",
-                    "yt_embed": "",
-                    "yt_playlist": "",
-                    "twitch_id": ""
-                },
-                "sitio_oficial": "",
-                "categoría": groupTitleId,
-                "país": countryId,
+                "signals": [
+                    { "type": "m3u8", "url": m3u8Url }
+                ],
+                "youtube": null,
+                "last_youtube_livestreams": null,
+                "twitch": null,
+                "website": "",
+                "country": countryId,
+                "category": groupTitleId,
             };
         }
     }

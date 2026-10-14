@@ -7,15 +7,21 @@ import {
     BUTTON_OFFCANVAS_LOAD_FAVORITE_CHANNELS,
     BOTON_COPIAR_ENLACE_COMPARTIR_SETUP
 } from '../botones.js'
-import { AMBIENT_MUSIC, LS_KEY_ACTIVE_VIEW_MODE, LS_KEY_LOGO_CARD_BACKGROUND_VISIBILITY } from '../constants/index.js';
+import { AMBIENT_MUSIC, isAudioPlaying, isAmbientEnabledByUser, LS_KEY_ACTIVE_VIEW_MODE, LS_KEY_LOGO_CARD_BACKGROUND_VISIBILITY } from '../constants/index.js';
 import { musicIcon } from '../main.js';
-import { getActiveChannelIds, getFavoriteChannels } from './index.js';
+import { getFavoriteChannels } from './index.js';
 
 /**
  * Adjust the visibility of the buttons to remove all active channels.
+ * Uses the DOM as source of truth for active channels because tele.remove()
+ * updates the DOM synchronously, while saveChannelsToLocalStorage() is debounced.
+ * Relying on getActiveChannelIds() (which reads localStorage) would return stale
+ * data during "remove all" batch operations, keeping the wrong buttons visible.
  */
 export const adjustVisibilityButtonsRemoveAllActiveChannels = () => {
-    const hasActiveChannels = getActiveChannelIds().length > 0;
+    // DOM is always up-to-date; localStorage may lag behind due to debouncing.
+    const domActiveChannels = document.querySelectorAll('div[data-canal]').length;
+    const hasActiveChannels = domActiveChannels > 0;
     const hasFavorites = getFavoriteChannels().length > 0;
 
     // Buttons remove all active channels
@@ -28,16 +34,22 @@ export const adjustVisibilityButtonsRemoveAllActiveChannels = () => {
 
     // si es vision cuadrícula
     if (localStorage.getItem(LS_KEY_ACTIVE_VIEW_MODE) !== 'single-view' && localStorage.getItem(LS_KEY_LOGO_CARD_BACKGROUND_VISIBILITY) !== 'hide') {
-        if (!hasActiveChannels && AMBIENT_MUSIC.paused && document.querySelector('#alerta-borrado-localstorage').classList.contains('d-none')) {
+        const alertaEl = document.querySelector('#alerta-borrado-localstorage');
+        // Requires explicit opt-in: this also runs before initialLoad() has
+        // created the tiles, so "no active channels" is briefly true on a cold
+        // start.
+        const ambientWanted = isAmbientEnabledByUser();
+        if (!hasActiveChannels && !isAudioPlaying(AMBIENT_MUSIC) && ambientWanted
+            && alertaEl?.classList.contains('d-none')) {
             AMBIENT_MUSIC.loop = true;
             AMBIENT_MUSIC.play()
                 .then(() => {
                     musicIcon.classList.replace('bi-play-fill', 'bi-pause-fill');
                 })
-                .catch(() => { });
+                .catch(err => console.warn('[teles] Ambient music play failed:', err));
 
         } else {
-            AMBIENT_MUSIC.pause()
+            isAudioPlaying(AMBIENT_MUSIC) && AMBIENT_MUSIC.pause();
             musicIcon.classList.replace('bi-pause-fill', 'bi-play-fill');
         }
     }

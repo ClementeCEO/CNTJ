@@ -1,53 +1,39 @@
 /**
  * Hides text in overlay buttons if the content exceeds the container size.
- * Performance: each overlay is processed in two separate phases to avoid layout
- * thrashing - all DOM reads happen before any style writes within each overlay.
+ *
+ * Pass a container to scope the query; without it this scans the whole document
+ * on every channel add/remove. Layout reads are batched per overlay to avoid
+ * read/write thrashing, and the whole measurement is skipped when the text is
+ * already in the state we would leave it in.
+ *
+ * @param {HTMLElement} [container]
  * @returns {void}
  */
-export const hideOverlayButtonText = () => {
-    const OVERLAY_BARS = document.querySelectorAll('.barra-overlay');
-    OVERLAY_BARS.forEach(overlay => {
-        if (!overlay) return;
+export const hideOverlayButtonText = (container) => {
+    const root = (container instanceof HTMLElement) ? container : document;
+    const overlays = root.querySelectorAll('.barra-overlay');
+    if (!overlays.length) return;
 
-        // Only target spans within visible parents to avoid ghost calculations
-        const TEXT_IN_OVERLAY = Array.from(overlay.querySelectorAll('span:not(.dropdown-item span)'))
-            .filter(span => span.parentElement && span.parentElement.offsetParent !== null);
+    overlays.forEach(overlay => {
+        const textSpans = Array.from(overlay.querySelectorAll('span:not(.dropdown-item span)'))
+            .filter(span => span.parentElement?.offsetParent !== null);
+        if (!textSpans.length) return;
 
-        // Always show text initially to calculate total size, not just the icon
-        TEXT_IN_OVERLAY.forEach(span => {
-            if (span && span.style.display !== 'inline') span.style.display = 'inline';
-        });
+        const cached = overlay._overlayTextState;
+        const allShown = textSpans.every(span => span.style.display !== 'none');
+        if (cached !== undefined && cached === allShown) return;
 
-        // READ PHASE (batch all layout-triggering reads before any writes)
-        const overlayWidth = Math.floor(overlay.clientWidth);
-        const contentWidth = Math.floor(overlay.scrollWidth);
-        const overlayHeight = Math.floor(overlay.clientHeight);
+        textSpans.forEach(span => { span.style.display = 'inline'; });
 
-        // Detects if the bar occupies more than one line (wraps) by comparing its height vs base element height
-        // Must use a VISIBLE element to get a valid height reference
-        const firstVisibleInteractiveElement = Array.from(overlay.querySelectorAll('button, a, div'))
-            .find(el => el.offsetParent !== null);
+        // Measurements, back to back.
+        const ow = overlay.clientWidth;
+        const cw = overlay.scrollWidth;
+        const oh = overlay.clientHeight;
+        const base = Array.from(overlay.querySelectorAll('button, a, div')).find(el => el.offsetParent !== null);
+        const bh = base ? Math.floor(base.getBoundingClientRect().height) : oh;
+        const hide = (cw - ow) > 2 || (oh - bh) > 8;
 
-        const baseElementHeight = firstVisibleInteractiveElement
-            ? Math.floor(firstVisibleInteractiveElement.getBoundingClientRect().height)
-            : overlayHeight;
-
-        // COMPUTE (pure logic, no DOM access)
-        const safetyMarginPx = 2; // Prevents false positives when measurements are nearly identical
-        const wrapMarginPx = 8;   // Tolerance for paddings/gaps before considering it wrapped
-        const horizontalOverflow = (contentWidth - overlayWidth) > safetyMarginPx;
-        const wrapActive = (overlayHeight - baseElementHeight) > wrapMarginPx;
-        const shouldHide = horizontalOverflow || wrapActive;
-
-        // WRITE PHASE (batch all style mutations after reads are done)
-        TEXT_IN_OVERLAY.forEach(span => {
-            if (!span) return;
-            if (shouldHide && span.style.display !== 'none') {
-                span.style.display = 'none';
-            } else if (!shouldHide && span.style.display !== 'inline') {
-                span.style.display = 'inline';
-            }
-        });
+        textSpans.forEach(span => { span.style.display = hide ? 'none' : 'inline'; });
+        overlay._overlayTextState = hide;
     });
 }
-

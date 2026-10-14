@@ -3,27 +3,17 @@ import { channelsList } from "../channelManager.js";
 const UNKNOWN_COUNTRY_VALUE = "Desconocido";
 const UNDEFINED_CATEGORY_VALUE = "undefined";
 
-/**
- * Builds country-category relationships at runtime to avoid initialization cycles.
- * Always uses the most recent state of `channelsList`.
- * @returns {{
- *   categoriesByCountryMap: Map<string, Set<string>>,
- *   countriesByCategoryMap: Map<string, Set<string>>,
- *   allCategories: Set<string>,
- *   allCountries: Set<string>
- * }}
- */
 function buildRelations() {
     const categoriesByCountryMap = new Map();
     const countriesByCategoryMap = new Map();
     const channels = channelsList ? Object.values(channelsList) : [];
 
     for (const channel of channels) {
-        const countryCode = channel?.país?.trim()
-            ? channel.país.toLowerCase()
+        const countryCode = channel?.country?.trim()
+            ? channel.country.toLowerCase()
             : UNKNOWN_COUNTRY_VALUE;
-        const category = channel?.categoría?.trim()
-            ? channel.categoría.toLowerCase()
+        const category = channel?.category?.trim()
+            ? channel.category.toLowerCase()
             : UNDEFINED_CATEGORY_VALUE;
 
         if (!categoriesByCountryMap.has(countryCode)) {
