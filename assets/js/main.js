@@ -1,7 +1,7 @@
 /* 
-  main v0.28
-  by ClementeCEO
-  https://github.com/ClementeCEO/CNTJ
+  main v0.35
+  by Alplox 
+  https://github.com/Alplox/teles
 */
 
 // MARK: import
@@ -15,7 +15,8 @@ import {
     getCombineChannelsPreference,
     setCombineChannelsPreference,
     DEFAULT_CHANNELS_ARRAY,
-    EXTRA_DEFAULT_CHANNELS_ARRAY
+    EXTRA_DEFAULT_CHANNELS_ARRAY,
+    usedCdnFallback
 } from './channelManager.js';
 
 
@@ -41,10 +42,12 @@ import {
     LS_KEY_CHANNEL_SIGNAL_PREFERENCE,
     LS_KEY_BOOTSTRAP_COL_NUMBER,
     LS_KEY_OVERLAY_VISIBILITY,
-    LS_KEY_SAVED_CHANNELS_GRID_VIEW,
     OVERLAY_BUTTONS_CONFIG,
     CSS_CLASS_BUTTON_PRIMARY,
     AMBIENT_MUSIC,
+    isAudioPlaying,
+    setAmbientEnabledByUser,
+    AUDIO_FAIL,
     ID_PREFIX_CONTAINERS_CHANNELS,
     LS_KEY_TELES_GRIDSTACK_LAYOUT
 } from './constants/index.js';
@@ -54,6 +57,7 @@ import {
     detectThemePreferences,
     showToast,
     saveChannelsToLocalStorage,
+    saveChannelsToLocalStorageDebounced,
     adjustChannelButtonClass,
     activateSingleView,
     deactivateSingleView,
@@ -62,9 +66,11 @@ import {
     createChannelButtons,
     createButtonsForChangeChannelModal,
     createButtonsForSingleView,
+    clearRenderedContainers,
     adjustVisibilityButtonsRemoveAllActiveChannels,
     saveOriginalOrder,
     adjustBootstrapColumnClasses,
+    invalidateCachedColumnSettings,
     updateGridColumnConfiguration,
     createCountryButtons,
     createCategoryButtons,
@@ -83,6 +89,7 @@ import {
     resyncActiveChannelsVisualState,
     renderPersonalizedListsUI,
     getActiveChannelIds,
+    getSavedActiveChannelIds,
     toggleGridViewControls
 } from './helpers/index.js';
 
@@ -91,28 +98,29 @@ import {
     obtainNumberOfChannelsPerRow,
     registerVideojsTranslation,
     initializeBootstrapTooltips,
-    disposeBootstrapTooltips
+    disposeBootstrapTooltips,
+    playAudio,
+    readJson,
+    writeJson,
+    patchPwaInstallAccessibility
 } from './utils/index.js';
 
 // MARK: 📦 Exports
 export let gridViewContainer;
 export let freeViewContainer;
-export let gridStackInstance;
+let gridStackInstance;
 
-export const saveGridStackLayout = () => {
+/** @type {Object|null} Cached grid layout — invalidated on saveGridStackLayout() */
+let _cachedGridLayout = null;
+
+const saveGridStackLayout = () => {
     if (!gridStackInstance) return;
 
     // Read the prior saved state to prevent sequential loading from erasing inactive configurations
-    const savedPayload = localStorage.getItem(LS_KEY_TELES_GRIDSTACK_LAYOUT);
-    let layout = {};
-    if (savedPayload) {
-        try {
-            layout = JSON.parse(savedPayload);
-        } catch (e) {
-            console.error('[teles] Error loading prior gridstack layout:', e);
-        }
-    }
+    let layout = readJson(LS_KEY_TELES_GRIDSTACK_LAYOUT, {});
+    if (typeof layout !== 'object' || layout === null || Array.isArray(layout)) layout = {};
 
+    if (!freeViewContainer) return;
     const items = freeViewContainer.querySelectorAll('.grid-stack-item');
     items.forEach(item => {
         const id = item.getAttribute('data-canal');
@@ -127,6 +135,7 @@ export const saveGridStackLayout = () => {
     });
 
     localStorage.setItem(LS_KEY_TELES_GRIDSTACK_LAYOUT, JSON.stringify(layout));
+    _cachedGridLayout = layout; // Update cache so tele.add() reads the fresh value
 };
 
 export let singleViewContainer;
@@ -136,8 +145,7 @@ export let singleViewVideoContainer;
 export let singleViewNoSignalIcon;
 
 // URL dinámica
-export let isDynamicUrlMode = false;
-try { isDynamicUrlMode = JSON.parse(localStorage.getItem(LS_KEY_DYNAMIC_URL)) ?? false; } catch { }
+export let isDynamicUrlMode = readJson(LS_KEY_DYNAMIC_URL, false) === true;
 
 export let isLoadingFromSharedUrl = false;
 
@@ -188,6 +196,53 @@ export let fullHeightSpan;
 
 
 // MARK: 📫 DOMContentLoaded
+const scheduleAfterFirstPaint = (callback) => {
+    requestAnimationFrame(() => setTimeout(callback, 0));
+};
+
+/**
+ * Wires the "Reiniciar almacenamiento local" button. Registered unconditionally
+ * at startup rather than from inside a catch block, so a failure raised before
+ * initialLoad() still leaves the user a way out.
+ */
+const registrarReinicioAlmacenamiento = () => {
+    const resetBtn = document.getElementById('boton-borrar-localstorage-no-carga-canales');
+    if (!resetBtn || resetBtn.dataset.wired === 'true') return;
+    resetBtn.dataset.wired = 'true';
+    resetBtn.addEventListener('click', () => {
+        try {
+            localStorage.clear();
+        } catch (error) {
+            console.error('[teles] No se pudo limpiar el almacenamiento local:', error);
+        }
+        window.location.reload();
+    });
+};
+
+/**
+ * Surfaces a channel-load failure to the user.
+ * @param {unknown} error
+ */
+const mostrarErrorCargaCanales = (error) => {
+    const overlay = document.getElementById('alerta-error-carga-canales');
+    const spanError = document.getElementById('span-contenedor-error');
+    const mensaje = error?.message || String(error);
+
+    registrarReinicioAlmacenamiento();
+
+    if (overlay && spanError) {
+        overlay.classList.remove('d-none');
+        spanError.textContent = mensaje;
+        playAudio(AUDIO_FAIL);
+    }
+    showToast({
+        title: 'Error durante carga inicial',
+        body: mensaje,
+        type: 'danger',
+        showReloadOnError: true
+    });
+};
+
 window.addEventListener('DOMContentLoaded', () => {
     registerVideojsTranslation();
 
@@ -199,13 +254,15 @@ window.addEventListener('DOMContentLoaded', () => {
     freeViewContainer = document.querySelector('#container-vision-libre');
 
     // plugin to move channels in grid using Sortable
-    new Sortable(gridViewContainer, {
-        animation: 150,
-        ghostClass: 'clase-fantasma-arrastre-sortable',
-        handle: '.clase-para-mover',
-        onEnd: function () {
-            saveChannelsToLocalStorage();
-        },
+    scheduleAfterFirstPaint(() => {
+        new Sortable(gridViewContainer, {
+            animation: 150,
+            ghostClass: 'clase-fantasma-arrastre-sortable',
+            handle: '.clase-para-mover',
+            onEnd: function () {
+                saveChannelsToLocalStorageDebounced();
+            },
+        });
     });
 
     dynamicUrlCheckbox = document.querySelector('#checkbox-url-dinamica')
@@ -269,7 +326,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if (targetMode === 'single-view') return;
 
         // Limpieza exhaustiva antes de cambiar modo
-        const activeIds = Object.keys(JSON.parse(localStorage.getItem(LS_KEY_SAVED_CHANNELS_GRID_VIEW)) || {});
+        const activeIds = getSavedActiveChannelIds();
 
         // 1. Limpiar recursos de Gridstack (Vista Libre)
         if (freeViewContainer) {
@@ -284,13 +341,14 @@ window.addEventListener('DOMContentLoaded', () => {
         }
 
         // 3. Vaciar contenedores
-        gridViewContainer.innerHTML = '';
-        if (gridStackInstance) gridStackInstance.removeAll(true); // remove widgets and DOM nodes
+        if (gridViewContainer) gridViewContainer.innerHTML = '';
+        if (gridStackInstance) gridStackInstance.removeAll(true);
 
         localStorage.setItem(LS_KEY_ACTIVE_VIEW_MODE, targetMode);
+        invalidateCachedColumnSettings();
 
-        gridViewContainer.classList.toggle('d-none', targetMode !== 'grid-view');
-        freeViewContainer.classList.toggle('d-none', targetMode !== 'free-view');
+        gridViewContainer?.classList.toggle('d-none', targetMode !== 'grid-view');
+        freeViewContainer?.classList.toggle('d-none', targetMode !== 'free-view');
 
         toggleGridViewControls(targetMode === 'free-view');
 
@@ -469,12 +527,12 @@ window.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
-                const channelSignalPreferences = JSON.parse(localStorage.getItem(LS_KEY_CHANNEL_SIGNAL_PREFERENCE)) || {};
+                const channelSignalPreferences = readJson(LS_KEY_CHANNEL_SIGNAL_PREFERENCE, {});
 
                 getActiveChannelIds().forEach(channelId => {
                     if (channelId) {
-                        const channelData = channelsList?.[channelId]?.señales;
-                        if (!channelData) return;
+                        const channel = channelsList?.[channelId];
+                        if (!channel) return;
 
                         let signalToUse;
 
@@ -483,17 +541,18 @@ window.addEventListener('DOMContentLoaded', () => {
                             signalToUse = Object.keys(channelSignalPreferences[channelId])[0];
                         } else {
                             // 2. Default: signal priority
-                            const { iframe_url, m3u8_url, yt_id, yt_embed, yt_playlist, twitch_id } = channelData;
+                            const signals = channel.signals ?? [];
+                            const hasIframe = signals.some(s => s.type === 'iframe');
+                            const hasM3u8 = signals.some(s => s.type === 'm3u8');
 
-                            if (iframe_url?.length) signalToUse = 'iframe_url';
-                            else if (m3u8_url?.length) signalToUse = 'm3u8_url';
-                            else if (yt_id) signalToUse = 'yt_id';
-                            else if (yt_embed) signalToUse = 'yt_embed';
-                            else if (yt_playlist) signalToUse = 'yt_playlist';
-                            else if (twitch_id) signalToUse = 'twitch_id';
+                            if (hasIframe) signalToUse = 'iframe';
+                            else if (hasM3u8) signalToUse = 'm3u8';
+                            else if (channel.youtube) signalToUse = 'youtube';
+                            else if (channel.last_youtube_livestreams?.[0]) signalToUse = 'youtube_embed';
+                            else if (channel.twitch) signalToUse = 'twitch';
                         }
 
-                        if (signalToUse === 'm3u8_url') {
+                        if (signalToUse === 'm3u8') {
                             cambiarSoloSeñalActiva(channelId);
                         }
 
@@ -535,7 +594,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const widthPercentage = `${widthValue}%`;
         widthRangeInput.value = widthValue;
         widthRangeValue.textContent = widthPercentage;
-        gridViewContainer.style.maxWidth = widthPercentage;
+        if (gridViewContainer) gridViewContainer.style.maxWidth = widthPercentage;
     };
 
     widthRangeInput.addEventListener('input', (event) => {
@@ -568,18 +627,13 @@ window.addEventListener('DOMContentLoaded', () => {
 
             isEnabled ? showLogosIcon.classList.replace('bi-image', 'bi-image-fill') : showLogosIcon.classList.replace('bi-image-fill', 'bi-image');
 
-            // Re-render buttons to apply changes
-            clearChannelListContainers();
-            createChannelButtons();
-            createCountryButtons();
-            createCategoryButtons();
-            resyncActiveChannelsVisualState();
-            initializeBootstrapTooltips();
+            // Toggle logos via CSS class instead of full DOM re-render
+            document.documentElement.classList.toggle('hide-logos', !isEnabled);
 
             showToast({
                 body: `Logos en botones ${isEnabled ? 'habilitados' : 'deshabilitados'}`,
                 type: 'info',
-                duration: 2000
+                delay: 2000
             });
         });
 
@@ -591,26 +645,31 @@ window.addEventListener('DOMContentLoaded', () => {
             isVisible: isShowLogosEnabled
         });
         isShowLogosEnabled ? showLogosIcon.classList.replace('bi-image', 'bi-image-fill') : showLogosIcon.classList.replace('bi-image-fill', 'bi-image');
+
+        // Sync CSS class with the saved preference on initial load
+        document.documentElement.classList.toggle('hide-logos', !isShowLogosEnabled);
     }
 
-    fullHeightCheckbox.addEventListener('click', () => {
+    fullHeightCheckbox?.addEventListener('click', () => {
         fullHeightCheckbox.checked
             ? (iconElFullHeight.classList.replace('bi-arrows-collapse', 'bi-arrows-vertical'),
-                JSON.stringify(localStorage.setItem(LS_KEY_LAYOUT_FULL_HEIGHT_ENABLED, true)),
+                localStorage.setItem(LS_KEY_LAYOUT_FULL_HEIGHT_ENABLED, true),
                 fullHeightSpan.textContent = 'Expandido'
             )
             : (iconElFullHeight.classList.replace('bi-arrows-vertical', 'bi-arrows-collapse'),
-                JSON.stringify(localStorage.setItem(LS_KEY_LAYOUT_FULL_HEIGHT_ENABLED, false)),
+                localStorage.setItem(LS_KEY_LAYOUT_FULL_HEIGHT_ENABLED, false),
                 fullHeightSpan.textContent = 'Reducido'
             );
+        invalidateCachedColumnSettings();
         adjustBootstrapColumnClasses()
     });
 
-    let isFullHeightMode = true;
-    try { isFullHeightMode = JSON.parse(localStorage.getItem(LS_KEY_LAYOUT_FULL_HEIGHT_ENABLED)) ?? true; } catch { }
+    let isFullHeightMode = readJson(LS_KEY_LAYOUT_FULL_HEIGHT_ENABLED, true);
+    if (typeof isFullHeightMode !== 'boolean') isFullHeightMode = true;
 
     if (isFullHeightMode) {
-        JSON.stringify(localStorage.setItem(LS_KEY_LAYOUT_FULL_HEIGHT_ENABLED, true));
+        localStorage.setItem(LS_KEY_LAYOUT_FULL_HEIGHT_ENABLED, true);
+        invalidateCachedColumnSettings();
         fullHeightCheckbox.checked = true;
         iconElFullHeight.classList.replace('bi-arrows-collapse', 'bi-arrows-vertical');
         fullHeightSpan.textContent = 'Expandido';
@@ -643,9 +702,9 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    let floatingActionsPosition = localStorage.getItem(LS_KEY_FLOATING_BUTTONS_POSITION);
-    if (floatingActionsPosition !== null) {
-        const { top, start, margin, translate } = JSON.parse(floatingActionsPosition);
+    const parsedFloatingPosition = readJson(LS_KEY_FLOATING_BUTTONS_POSITION, null);
+    if (parsedFloatingPosition && typeof parsedFloatingPosition === 'object') {
+        const { top, start, margin, translate } = parsedFloatingPosition;
         updateFloatingButtons(top, start, margin, translate);
     } else {
         updateFloatingButtons('bottom-0', 'start-50', 'mb-3', 'translate-middle-x');
@@ -658,7 +717,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const floatingButtonsSpans = document.querySelectorAll('#grupo-botones-flotantes button>span');
 
-    floatingButtonsTextCheckbox.addEventListener('click', () => {
+    floatingButtonsTextCheckbox?.addEventListener('click', () => {
         floatingButtonsSpans.forEach(button => {
             button.classList.toggle('d-none', !floatingButtonsTextCheckbox.checked);
         });
@@ -734,12 +793,12 @@ window.addEventListener('DOMContentLoaded', () => {
                 showToast({
                     body: 'Actualizando listado de canales...',
                     type: 'dark',
-                    duration: 2000
+                delay: 2000
                 });
 
                 // 0. Capture active channels before the change (avoid duplicates)
                 const activeGridChannels = getActiveChannelIds();
-                const activeSingleChannel = singleViewVideoContainer.querySelector('div[data-canal]')?.dataset.canal;
+                const activeSingleChannel = singleViewVideoContainer?.querySelector('div[data-canal]')?.dataset.canal;
 
                 // 1. Reload base channels (resets defaults)
                 await restoreChannelsFromMemory();
@@ -748,11 +807,12 @@ window.addEventListener('DOMContentLoaded', () => {
                 restorePersonalizedLists();
 
                 // 3. Re-render UI
-                createChannelButtons(channelsList);
+                clearRenderedContainers();
+                createChannelButtons();
 
                 // Update additional lists to ensure consistency
-                createButtonsForChangeChannelModal(channelsList);
-                createButtonsForSingleView(channelsList);
+                createButtonsForChangeChannelModal();
+                createButtonsForSingleView();
 
                 // Update base order for sorting features
                 for (const PREFIX of ID_PREFIX_CONTAINERS_CHANNELS) {
@@ -800,7 +860,9 @@ window.addEventListener('DOMContentLoaded', () => {
     initMergeCustomListsPreference();
 
 
-    renderPersonalizedListsUI();
+    scheduleAfterFirstPaint(() => {
+        renderPersonalizedListsUI();
+    });
 
 
     const loadCustomListButtonEl = document.querySelector('#boton-cargar-lista-personalizada');
@@ -949,7 +1011,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
         logoCardBackgroundCheckbox.checked ? logoCardBackgroundIcon.classList.replace('bi-eye-slash', 'bi-eye') : logoCardBackgroundIcon.classList.replace('bi-eye', 'bi-eye-slash');
 
-        if (!AMBIENT_MUSIC.paused && !logoCardBackgroundCheckbox.checked) {
+        if (isAudioPlaying(AMBIENT_MUSIC) && !logoCardBackgroundCheckbox.checked) {
             AMBIENT_MUSIC.pause();
             musicIcon.classList.replace('bi-pause-fill', 'bi-play-fill');
         }
@@ -982,14 +1044,20 @@ window.addEventListener('DOMContentLoaded', () => {
     musicIcon = document.querySelector('#music-icon');
 
     toggleButton.addEventListener('click', () => {
-        if (AMBIENT_MUSIC.paused) {
-            AMBIENT_MUSIC.play().catch(e => console.error('[teles] Error playing audio:', e));
+        if (isAudioPlaying(AMBIENT_MUSIC)) {
+            AMBIENT_MUSIC.pause();
+            setAmbientEnabledByUser(false);
+            musicIcon.classList.replace('bi-pause-fill', 'bi-play-fill');
+        } else {
             AMBIENT_MUSIC.loop = true;
             AMBIENT_MUSIC.volume = volumeSlider.value / 100;
             musicIcon.classList.replace('bi-play-fill', 'bi-pause-fill');
-        } else {
-            AMBIENT_MUSIC.pause();
-            musicIcon.classList.replace('bi-pause-fill', 'bi-play-fill');
+            AMBIENT_MUSIC.play().catch(e => {
+                console.error('[teles] Error playing audio:', e);
+                musicIcon.classList.replace('bi-pause-fill', 'bi-play-fill');
+            });
+            // Opt-in only, so a cold start never touches the track.
+            setAmbientEnabledByUser(true);
         }
     });
 
@@ -1004,9 +1072,21 @@ window.addEventListener('DOMContentLoaded', () => {
      * Keeps user-facing strings in Spanish to avoid UX changes.
      */
     async function initialLoad() {
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const hideLoading = () => loadingIndicator?.classList.add('d-none');
+        loadingIndicator?.classList.remove('d-none');
+
         try {
             await fetchLoadChannels();
+            if (usedCdnFallback && channelsList) {
+                showToast({
+                    title: 'Fuente alternativa',
+                    body: 'La fuente principal no estuvo disponible. Se está usando una fuente CDN alternativa para cargar los canales.',
+                    type: 'warning'
+                });
+            }
             if (channelsList) {
+                hideLoading();
                 const restoredLists = restorePersonalizedLists();
 
                 // Lazy load: Initial load OR Single View.
@@ -1040,6 +1120,7 @@ window.addEventListener('DOMContentLoaded', () => {
                         deactivateSingleView({ skipDefaultChannelsLoad: true });
                         singleViewActivateButtonEl.classList.replace(CSS_CLASS_BUTTON_PRIMARY, 'btn-light-subtle');
                         localStorage.setItem(LS_KEY_ACTIVE_VIEW_MODE, 'grid-view');
+                        invalidateCachedColumnSettings();
                     } else if (localStorage.getItem(LS_KEY_ACTIVE_VIEW_MODE) === 'free-view') {
                         // Ensure containers are correctly toggled before loading channels from URL
                         gridViewContainer.classList.add('d-none');
@@ -1084,28 +1165,26 @@ window.addEventListener('DOMContentLoaded', () => {
                 /// actualizarBotonesPersonalizarOverlay()
 
                 const lsBootstrapColNumber =
-                    JSON.parse(localStorage.getItem(LS_KEY_BOOTSTRAP_COL_NUMBER)) ??
+                    readJson(LS_KEY_BOOTSTRAP_COL_NUMBER, null) ??
                     (isMobile.any ? BOOTSTRAP_COL_NUMBER_MOBILE : BOOTSTRAP_COL_NUMBER_DESKTOP);
                 updateGridColumnConfiguration(lsBootstrapColNumber);
                 hideOverlayButtonText()
 
-                // Defer non-critical tooltips
-                requestAnimationFrame(() => {
+                // Defer non-critical tooltips until the browser has a chance to paint.
+                scheduleAfterFirstPaint(() => {
                     initializeBootstrapTooltips();
                 });
 
                 if (restoredLists > 0) {
-                    renderPersonalizedListsUI();
+                    scheduleAfterFirstPaint(() => {
+                        renderPersonalizedListsUI();
+                    });
                 }
             }
         } catch (error) {
             console.error('[teles] Error during initial load', error);
-            showToast({
-                title: 'Error durante carga inicial',
-                body: `Error: ${error}`,
-                type: 'danger',
-                showReloadOnError: true
-            });
+            hideLoading();
+            mostrarErrorCargaCanales(error);
             return
         }
     }
@@ -1119,21 +1198,22 @@ window.addEventListener('DOMContentLoaded', () => {
     let _logoRafScheduled = false;
     window.addEventListener('resize', () => { _logoRect = null; }, { passive: true });
 
-    TARJETA_LOGO_BACKGROUND.onmousemove = e => {
-        if (_logoRafScheduled) return;
-        _logoRafScheduled = true;
-        requestAnimationFrame(() => {
-            _logoRafScheduled = false;
-            // Lazily read rect; stays cached until next resize
-            if (!_logoRect) _logoRect = TARJETA_LOGO_BACKGROUND.getBoundingClientRect();
-            const x = e.clientX - _logoRect.left;
-            const y = e.clientY - _logoRect.top;
-            TARJETA_LOGO_BACKGROUND.style.setProperty('--mouse-x', `${x}px`);
-            TARJETA_LOGO_BACKGROUND.style.setProperty('--mouse-y', `${y}px`);
-        });
-    };
+    if (TARJETA_LOGO_BACKGROUND) {
+        TARJETA_LOGO_BACKGROUND.addEventListener('mousemove', e => {
+            if (_logoRafScheduled) return;
+            _logoRafScheduled = true;
+            requestAnimationFrame(() => {
+                _logoRafScheduled = false;
+                if (!_logoRect) _logoRect = TARJETA_LOGO_BACKGROUND.getBoundingClientRect();
+                const x = e.clientX - _logoRect.left;
+                const y = e.clientY - _logoRect.top;
+                TARJETA_LOGO_BACKGROUND.style.setProperty('--mouse-x', `${x}px`);
+                TARJETA_LOGO_BACKGROUND.style.setProperty('--mouse-y', `${y}px`);
+            });
+        }, { passive: true });
+    }
 
-    screen.orientation.addEventListener('change', () => {
+    screen?.orientation?.addEventListener('change', () => {
         if (localStorage.getItem(LS_KEY_ACTIVE_VIEW_MODE) !== 'single-view') adjustBootstrapColumnClasses();
     });
 
@@ -1158,17 +1238,18 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }, freeViewContainer);
 
+    const saveGridStackLayoutDebounced = debounce(saveGridStackLayout, 300);
     gridStackInstance.on('change', () => {
-        saveGridStackLayout();
+        saveGridStackLayoutDebounced();
     });
     gridStackInstance.on('resizestop', () => {
-        saveGridStackLayout();
+        // saveGridStackLayout() already handled by 'change' event
     });
     gridStackInstance.on('dragstop', () => {
-        saveGridStackLayout();
+        // saveGridStackLayout() already handled by 'change' event
         initializeBootstrapTooltips();
         registerManualChannelChange();
-        saveChannelsToLocalStorage();
+        saveChannelsToLocalStorageDebounced();
     });
     gridStackInstance.on('dragstart', () => {
         disposeBootstrapTooltips();
@@ -1184,45 +1265,52 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         });
         saveGridStackLayout();
-        saveChannelsToLocalStorage();
+        saveChannelsToLocalStorageDebounced();
         adjustVisibilityButtonsRemoveAllActiveChannels();
     });
 
     initialLoad();
     adjustVisibilityButtonsRemoveAllActiveChannels();
 
+    // Disarms the boot watchdog in index.html.
+    registrarReinicioAlmacenamiento();
+    patchPwaInstallAccessibility();
+    globalThis.__telesBootOk = true;
 
     singleViewGrid = document.querySelector('.single-view-grid');
-    new Sortable(singleViewGrid, {
-        animation: 350,
-        handle: '.clase-para-mover',
-        easing: "cubic-bezier(.17,.67,.83,.67)",
-        ghostClass: 'marca-al-mover',
-        swapThreshold: 0.30,
-        onStart: () => {
-            try {
-                disposeBootstrapTooltips();
-            } catch (e) {
-                console.error('[teles] Error in Sortable onStart:', e);
+    scheduleAfterFirstPaint(() => {
+        if (!singleViewGrid) return;
+        new Sortable(singleViewGrid, {
+            animation: 350,
+            handle: '.clase-para-mover',
+            easing: "cubic-bezier(.17,.67,.83,.67)",
+            ghostClass: 'marca-al-mover',
+            swapThreshold: 0.30,
+            onStart: () => {
+                try {
+                    disposeBootstrapTooltips();
+                } catch (e) {
+                    console.error('[teles] Error in Sortable onStart:', e);
+                }
+            },
+            onChange: () => {
+                try {
+                    toggleOrderedClass();
+                } catch (e) {
+                    console.error('[teles] Error in Sortable onChange:', e);
+                }
+            },
+            onEnd: () => {
+                try {
+                    saveSingleViewPanelsOrder();
+                    initializeBootstrapTooltips();
+                    toggleOrderedClass();
+                    registerManualChannelChange();
+                } catch (e) {
+                    console.error('[teles] Error in Sortable onEnd:', e);
+                }
             }
-        },
-        onChange: () => {
-            try {
-                toggleOrderedClass();
-            } catch (e) {
-                console.error('[teles] Error in Sortable onChange:', e);
-            }
-        },
-        onEnd: () => {
-            try {
-                saveSingleViewPanelsOrder();
-                initializeBootstrapTooltips();
-                toggleOrderedClass();
-                registerManualChannelChange();
-            } catch (e) {
-                console.error('[teles] Error in Sortable onEnd:', e);
-            }
-        }
+        });
     });
 
 
@@ -1268,6 +1356,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const eventName = containerId.startsWith('offcanvas') ? 'show.bs.offcanvas' : 'show.bs.modal';
 
         element.addEventListener(eventName, () => {
+            if (!channelsList) return;
             createChannelButtons(containerId);
             createCountryButtons(containerId);
             createCategoryButtons(containerId);
@@ -1289,8 +1378,12 @@ export let tele = {
      *   Only safe to pass true during add-only batch loading (e.g. loadDefaultChannels),
      *   where no DOM elements are being removed so no orphaned tooltips can exist.
      *   The caller is responsible for running both functions once after the batch.
+     * @param {boolean} [options.skipSaveChannels=false] - When true, skips
+     *   saveChannelsToLocalStorage() for this call. Use during batch loading
+     *   to avoid N redundant localStorage writes; call saveChannelsToLocalStorage()
+     *   once after the batch completes.
      */
-    add: (channelId, { skipBatchExpensiveOps = false } = {}) => {
+    add: (channelId, { skipBatchExpensiveOps = false, skipSaveChannels = false } = {}) => {
         try {
             if (!channelId || !channelsList?.[channelId]) return console.error(`[teles] The channel "${channelId}" provided is not valid to be added.`);
 
@@ -1322,7 +1415,8 @@ export let tele = {
                 fragmentContainer.append(crearFragmentCanal(channelId, viewMode));
                 channelContainer.append(fragmentContainer);
 
-                const layouts = JSON.parse(localStorage.getItem(LS_KEY_TELES_GRIDSTACK_LAYOUT)) || {};
+                const layouts = _cachedGridLayout ?? readJson(LS_KEY_TELES_GRIDSTACK_LAYOUT, {});
+                _cachedGridLayout = layouts;
                 const optimalW = Math.max(2, Math.floor(12 / obtainNumberOfChannelsPerRow()));
                 const layout = layouts[channelId] || { w: optimalW, h: 3 };
 
@@ -1338,20 +1432,22 @@ export let tele = {
                     minW: 2,
                     minH: 1
                 });
-                saveChannelsToLocalStorage();
+                if (!skipSaveChannels) saveChannelsToLocalStorageDebounced();
                 // Note: saveGridStackLayout() is triggered automatically via the 'change' event
                 // Calling it here again would reset partially-loaded layouts during batch initialization
             } else {
                 channelContainer.classList.add('position-relative', 'shadow');
                 channelContainer.append(crearFragmentCanal(channelId, viewMode));
                 gridViewContainer.append(channelContainer);
-                saveChannelsToLocalStorage();
+                if (!skipSaveChannels) saveChannelsToLocalStorageDebounced();
             }
             adjustChannelButtonClass(channelId, true);
             // Skip expensive DOM-wide ops during add-only batch loading (see JSDoc above)
             if (!skipBatchExpensiveOps) {
-                initializeBootstrapTooltips();
-                hideOverlayButtonText();
+                // Scoped to the new tile: re-running these document-wide on every
+                // add/remove re-instantiated every tooltip on the page.
+                initializeBootstrapTooltips(channelContainer);
+                hideOverlayButtonText(channelContainer);
             }
             registerManualChannelChange();
             adjustVisibilityButtonsRemoveAllActiveChannels?.();
@@ -1399,8 +1495,9 @@ export let tele = {
 
             // Clean resources before removing the container; iframe, videojs, clappr, oplayer
             cleanTransmissionResources(transmissionToRemove);
-            // Remove tooltips; floating overlay buttons
-            disposeBootstrapTooltips();
+            // Remove tooltips; floating overlay buttons. Scoped to the outgoing
+            // tile — this used to dispose every tooltip in the document.
+            disposeBootstrapTooltips(transmissionToRemove);
 
             const viewMode = localStorage.getItem(LS_KEY_ACTIVE_VIEW_MODE) || 'grid-view';
             if (viewMode === 'single-view') {
@@ -1408,16 +1505,15 @@ export let tele = {
                 singleViewNoSignalIcon.classList.remove('d-none');
             } else if (viewMode === 'free-view') {
                 gridStackInstance.removeWidget(transmissionToRemove, true);
-                saveChannelsToLocalStorage();
+                saveChannelsToLocalStorageDebounced();
                 saveGridStackLayout();
             } else {
                 transmissionToRemove.remove();
-                saveChannelsToLocalStorage();
+                saveChannelsToLocalStorageDebounced();
                 adjustBootstrapColumnClasses();
             }
 
             adjustChannelButtonClass(channelId, false);
-            initializeBootstrapTooltips();
             registerManualChannelChange();
             adjustVisibilityButtonsRemoveAllActiveChannels?.();
         } catch (error) {
@@ -1443,15 +1539,16 @@ export let tele = {
      * after all channels are loaded - safe because no removals happen here.
      */
     loadDefaultChannels: () => {
-        let savedChannels = JSON.parse(localStorage.getItem(LS_KEY_SAVED_CHANNELS_GRID_VIEW)) || {};
+        const savedChannelIds = getSavedActiveChannelIds();
         // Default
-        if (Object.keys(savedChannels).length === 0 && localStorage.getItem(LS_KEY_WELCOME_MODAL_VISIBILITY) !== 'hide') {
-            getDefaultChannels(isMobile.any).forEach(channelId => tele.add(channelId, { skipBatchExpensiveOps: true }));
+        if (savedChannelIds.length === 0 && localStorage.getItem(LS_KEY_WELCOME_MODAL_VISIBILITY) !== 'hide') {
+            getDefaultChannels(isMobile.any).forEach(channelId => tele.add(channelId, { skipBatchExpensiveOps: true, skipSaveChannels: true }));
+            saveChannelsToLocalStorage(); // Single write after batch
             new bootstrap.Modal(document.querySelector('#modal-bienvenida')).show();
             // Check saved    
         } else {
             try {
-                Object.keys(savedChannels).forEach(channelId => {
+                savedChannelIds.forEach(channelId => {
                     if (areAllSignalsEmpty(channelId)) {
                         document.querySelectorAll(`button[data-canal="${channelId}"]`).forEach(buttonEl => {
                             buttonEl.classList.add('d-none');
@@ -1462,9 +1559,10 @@ export let tele = {
                             type: 'warning'
                         });
                     } else {
-                        tele.add(channelId, { skipBatchExpensiveOps: true });
+                        tele.add(channelId, { skipBatchExpensiveOps: true, skipSaveChannels: true });
                     }
                 });
+                saveChannelsToLocalStorage(); // Single write after batch
             } catch (error) {
                 console.error(`[teles] Error while loading default channels. Error: ${error}`);
                 showToast({

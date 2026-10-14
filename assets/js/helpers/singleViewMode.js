@@ -2,11 +2,11 @@ import { crearFragmentCanal } from "../canalUI.js";
 import { channelsList } from "../channelManager.js";
 import {
     AMBIENT_MUSIC,
+    isAudioPlaying,
     CSS_CLASS_BUTTON_PRIMARY,
     CSS_CLASS_BUTTON_SECONDARY,
     LS_KEY_ACTIVE_VIEW_MODE,
-    LS_KEY_HORIZONTAL_WIDTH_VALUE,
-    LS_KEY_SAVED_CHANNELS_GRID_VIEW
+    LS_KEY_HORIZONTAL_WIDTH_VALUE
 } from "../constants/index.js";
 
 import {
@@ -32,6 +32,7 @@ import {
     adjustChannelButtonClass,
     hideOverlayButtonText,
     adjustBootstrapColumnClasses,
+    invalidateCachedColumnSettings,
     registerManualChannelChange,
     clearSharedUrlParameter,
     cleanTransmissionResources,
@@ -39,13 +40,15 @@ import {
     loadSingleViewOrder,
     adjustVisibilityButtonsRemoveAllActiveChannels,
     createCountryButtons,
-    createCategoryButtons
+    createCategoryButtons,
+    getSavedActiveChannelIds
 } from "./index.js";
 
 import {
     obtainNumberOfChannelsPerRow,
     initializeBootstrapTooltips,
-    disposeBootstrapTooltips
+    disposeBootstrapTooltips,
+    readJson
 } from "../utils/index.js";
 
 /** @type {HTMLButtonElement|null} Button to copy share setup link */
@@ -73,7 +76,7 @@ export const toggleGridViewControls = (isFreeOrSingleView) => {
     } else {
         // Enable width range controls
         widthRangeInput.disabled = false;
-        widthRangeValue.textContent = JSON.parse(localStorage.getItem(LS_KEY_HORIZONTAL_WIDTH_VALUE)) ?? 100;
+        widthRangeValue.textContent = readJson(LS_KEY_HORIZONTAL_WIDTH_VALUE, 100) ?? 100;
         // Enable full height controls
         fullHeightCheckbox.disabled = false;
 
@@ -133,7 +136,7 @@ const enableGridViewControls = () => {
 
     // Enable width range controls
     widthRangeInput.disabled = false;
-    widthRangeValue.textContent = JSON.parse(localStorage.getItem(LS_KEY_HORIZONTAL_WIDTH_VALUE)) ?? 100;
+    widthRangeValue.textContent = readJson(LS_KEY_HORIZONTAL_WIDTH_VALUE, 100) ?? 100;
 
     // Enable full height controls
     fullHeightCheckbox.disabled = false;
@@ -215,10 +218,12 @@ const restoreBackedUpChannels = () => {
         channelDiv.dataset.canal = channelDiv.dataset.respaldo;
         channelDiv.append(crearFragmentCanal(channelDiv.dataset.canal));
         adjustChannelButtonClass(channelDiv.dataset.canal, true);
-        initializeBootstrapTooltips();
-        hideOverlayButtonText();
         channelDiv.removeAttribute('data-respaldo');
     });
+
+    // Initialize once after all channels are restored (was O(N²) inside forEach)
+    initializeBootstrapTooltips();
+    hideOverlayButtonText();
 
     return activeChannelsInDOM.length;
 };
@@ -243,8 +248,7 @@ const resetChannelButtonStyles = () => {
  * @returns {void}
  */
 const loadFirstSavedChannel = () => {
-    const savedChannels = JSON.parse(localStorage.getItem(LS_KEY_SAVED_CHANNELS_GRID_VIEW)) || {};
-    const channelIds = Object.keys(savedChannels);
+    const channelIds = getSavedActiveChannelIds();
 
     if (channelIds.length > 0) {
         try {
@@ -266,8 +270,8 @@ const loadFirstSavedChannel = () => {
  */
 export function activateSingleView() {
     try {
-        // Stop ambient music playback controls if music is playing
-        if (!AMBIENT_MUSIC.paused) {
+        // Stop ambient music playback controls if music is playing.
+        if (isAudioPlaying(AMBIENT_MUSIC)) {
             adjustVisibilityButtonsRemoveAllActiveChannels();
         }
 
@@ -281,6 +285,7 @@ export function activateSingleView() {
         }
 
         localStorage.setItem(LS_KEY_ACTIVE_VIEW_MODE, 'single-view');
+        invalidateCachedColumnSettings();
 
         // In single view, clear any shared parameter `c` and disable grid-specific controls
         clearSharedUrlParameter(true);
@@ -325,6 +330,7 @@ export function activateSingleView() {
 export function deactivateSingleView({ skipDefaultChannelsLoad = false } = {}) {
     try {
         localStorage.setItem(LS_KEY_ACTIVE_VIEW_MODE, 'grid-view');
+        invalidateCachedColumnSettings();
 
         // Remove active channel from single view
         const activeChannelInSingleView = singleViewContainer.querySelector('div[data-canal]');

@@ -4,7 +4,7 @@ import {
     ID_PREFIX_CONTAINERS_CHANNELS,
     CATEGORIES_ICONS
 } from "../constants/index.js";
-import { filterChannelsByInput, showToast } from "./index.js";
+import { filterChannelsByInput, showToast, setCategoryFilter } from "./index.js";
 import { syncCountriesWithCategory } from "./syncFilters.js";
 
 /** @type {Set<string>} Tracks containers that have already been rendered. */
@@ -26,21 +26,24 @@ export const clearCategoryRenderedContainers = () => {
  * @returns {void}
  */
 export function createCategoryButtons(specificPrefix) {
+    if (!channelsList) {
+        console.warn('[teles] Cannot create category buttons: channelsList is not loaded');
+        return;
+    }
     try {
-        const RAW_CATEGORIES = Object.values(channelsList).map(channel => {
-            const categoryValue = channel?.categoría;
-            if (!categoryValue || categoryValue === "") return "undefined";
-            return `${categoryValue}`.toLowerCase();
-        });
+        // Single pass: build counts and collect unique categories
+        const CHANNEL_COUNT_BY_CATEGORY = {};
+        const uniqueCategories = new Set();
+        for (const channel of Object.values(channelsList)) {
+            const categoryValue = channel?.category;
+            const cat = (!categoryValue || categoryValue === '') ? 'undefined' : `${categoryValue}`.toLowerCase();
+            CHANNEL_COUNT_BY_CATEGORY[cat] = (CHANNEL_COUNT_BY_CATEGORY[cat] || 0) + 1;
+            uniqueCategories.add(cat);
+        }
 
-        const CHANNEL_COUNT_BY_CATEGORY = RAW_CATEGORIES.reduce((count, category) => {
-            count[category] = (count[category] || 0) + 1;
-            return count;
-        }, {});
-
-        const UNIQUE_CATEGORIES = [...new Set(RAW_CATEGORIES)]
-            .filter(category => category && category !== "undefined")
-            .sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
+        const SORTED_CATEGORIES = [...uniqueCategories]
+            .filter(c => c && c !== 'undefined')
+            .sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
 
         const CATEGORY_OPTIONS = [];
 
@@ -52,7 +55,7 @@ export function createCategoryButtons(specificPrefix) {
             icon: allIcon
         });
 
-        for (const CATEGORY of UNIQUE_CATEGORIES) {
+        for (const CATEGORY of SORTED_CATEGORIES) {
             const categoryName = CATEGORY.charAt(0).toUpperCase() + CATEGORY.slice(1);
             const channelCount = CHANNEL_COUNT_BY_CATEGORY[CATEGORY] || 0;
             const categoryIcon = CATEGORIES_ICONS[CATEGORY] ?? CATEGORIES_ICONS.undefined;
@@ -146,6 +149,7 @@ export function createCategoryButtons(specificPrefix) {
 
                     clearSelection();
                     activateLabel(selectedLabel);
+                    setCategoryFilter(PREFIX, selectedCategory);
                     syncCountriesWithCategory(PREFIX, selectedCategory);
                     filterChannelsByInput(searchValue, channelButtonsContainer);
                 } catch (error) {
