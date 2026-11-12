@@ -1,0 +1,66 @@
+import {
+    BUTTON_MODAL_REMOVE_ALL_ACTIVE_CHANNELS,
+    BUTTON_OFFCANVAS_REMOVE_ALL_ACTIVE_CHANNELS,
+    BUTTON_MODAL_LOAD_DEFAULT_CHANNELS,
+    BUTTON_OFFCANVAS_LOAD_DEFAULT_CHANNELS,
+    BUTTON_MODAL_LOAD_FAVORITE_CHANNELS,
+    BUTTON_OFFCANVAS_LOAD_FAVORITE_CHANNELS,
+    BOTON_COPIAR_ENLACE_COMPARTIR_SETUP
+} from '../botones.js'
+import { AMBIENT_MUSIC, isAudioPlaying, isAmbientEnabledByUser, LS_KEY_ACTIVE_VIEW_MODE, LS_KEY_LOGO_CARD_BACKGROUND_VISIBILITY } from '../constants/index.js';
+import { musicIcon } from '../main.js';
+import { getFavoriteChannels } from './index.js';
+
+/**
+ * Adjust the visibility of the buttons to remove all active channels.
+ * Uses the DOM as source of truth for active channels because tele.remove()
+ * updates the DOM synchronously, while saveChannelsToLocalStorage() is debounced.
+ * Relying on getActiveChannelIds() (which reads localStorage) would return stale
+ * data during "remove all" batch operations, keeping the wrong buttons visible.
+ */
+export const adjustVisibilityButtonsRemoveAllActiveChannels = () => {
+    // DOM is always up-to-date; localStorage may lag behind due to debouncing.
+    const domActiveChannels = document.querySelectorAll('div[data-canal]').length;
+    const hasActiveChannels = domActiveChannels > 0;
+    const hasFavorites = getFavoriteChannels().length > 0;
+
+    // Buttons remove all active channels
+    [BUTTON_MODAL_REMOVE_ALL_ACTIVE_CHANNELS, BUTTON_OFFCANVAS_REMOVE_ALL_ACTIVE_CHANNELS].forEach(btn => {
+        btn?.classList.toggle('d-none', !hasActiveChannels);
+    });
+
+    BOTON_COPIAR_ENLACE_COMPARTIR_SETUP.disabled = !hasActiveChannels;
+    BOTON_COPIAR_ENLACE_COMPARTIR_SETUP.innerHTML = hasActiveChannels ? 'Copiar setup <i class="bi bi-clipboard"></i>' : 'Activa primero canales';
+
+    // si es vision cuadrícula
+    if (localStorage.getItem(LS_KEY_ACTIVE_VIEW_MODE) !== 'single-view' && localStorage.getItem(LS_KEY_LOGO_CARD_BACKGROUND_VISIBILITY) !== 'hide') {
+        const alertaEl = document.querySelector('#alerta-borrado-localstorage');
+        // Requires explicit opt-in: this also runs before initialLoad() has
+        // created the tiles, so "no active channels" is briefly true on a cold
+        // start.
+        const ambientWanted = isAmbientEnabledByUser();
+        if (!hasActiveChannels && !isAudioPlaying(AMBIENT_MUSIC) && ambientWanted
+            && alertaEl?.classList.contains('d-none')) {
+            AMBIENT_MUSIC.loop = true;
+            AMBIENT_MUSIC.play()
+                .then(() => {
+                    musicIcon.classList.replace('bi-play-fill', 'bi-pause-fill');
+                })
+                .catch(err => console.warn('[teles] Ambient music play failed:', err));
+
+        } else {
+            isAudioPlaying(AMBIENT_MUSIC) && AMBIENT_MUSIC.pause();
+            musicIcon.classList.replace('bi-pause-fill', 'bi-play-fill');
+        }
+    }
+
+    // Buttons load default channels (hidden if active channels exist)
+    [BUTTON_MODAL_LOAD_DEFAULT_CHANNELS, BUTTON_OFFCANVAS_LOAD_DEFAULT_CHANNELS].forEach(btn => {
+        btn?.classList.toggle('d-none', hasActiveChannels);
+    });
+
+    // Buttons load favorite channels (shown if favorites exist and no active channels)
+    [BUTTON_MODAL_LOAD_FAVORITE_CHANNELS, BUTTON_OFFCANVAS_LOAD_FAVORITE_CHANNELS].forEach(btn => {
+        btn?.classList.toggle('d-none', !hasFavorites || hasActiveChannels);
+    });
+};
