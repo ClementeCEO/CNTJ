@@ -5,7 +5,7 @@ import { readJson, writeJson } from "./utils/safeStorage.js";
 
 // Channel fetch management
 export const DEFAULT_CHANNELS_ARRAY = ['nbc-news', 'meganoticias', 'ndtv-india'];
-export const EXTRA_DEFAULT_CHANNELS_ARRAY = ['telemundo', 'telefe-noticias', 'rtve'];
+export const EXTRA_DEFAULT_CHANNELS_ARRAY = ['televentv', 'unitel-bolivia', 'rtve'];
 
 export let channelsList;
 
