@@ -4,8 +4,8 @@ import { m3uToJson, validateM3UContent } from "./helpers/index.js";
 import { readJson, writeJson } from "./utils/safeStorage.js";
 
 // Channel fetch management
-export const DEFAULT_CHANNELS_ARRAY = ['24-horas', 'meganoticias', 't13'];
-export const EXTRA_DEFAULT_CHANNELS_ARRAY = ['chv-noticias', 'cnn-cl', 'lofi-girl'];
+export const DEFAULT_CHANNELS_ARRAY = ['nbc-news', 'meganoticias', 'ndtv-india'];
+export const EXTRA_DEFAULT_CHANNELS_ARRAY = ['telemundo', 'telefe-noticias', 'rtve'];
 
 export let channelsList;
 
